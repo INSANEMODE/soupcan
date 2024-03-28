@@ -19,7 +19,8 @@
             "util.js",
             "media-matching.js",
             "database.js",
-            "soupcan.js"
+            "soupcan.js",
+            "mobile.js"
         ],
         "matches": ["*://*.twitter.com/*", "*://*.x.com/*"]
     }],
