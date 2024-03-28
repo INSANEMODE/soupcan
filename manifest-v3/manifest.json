@@ -7,6 +7,7 @@
     "homepage_url": "https://bethylamine.github.io/library/browser-extension/",
     "host_permissions": ["*://*.twitter.com/*", "*://*.x.com/*"],
     "background": {
+        "scripts": ["background.js"], 
         "service_worker": "background.js"
     },
     "content_scripts": [{
@@ -48,5 +49,15 @@
           "resources": ["images/*.png"],
           "matches": ["*://*.twitter.com/*"]
         }
-    ]
+    ],
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "soupcan@beth.lgbt",
+            "strict_min_version": "121.0"
+        },
+        "gecko_android": {
+            "id": "soupcan@beth.lgbt",
+            "strict_min_version": "121.0"
+        }
+    }
 }
