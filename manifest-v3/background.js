@@ -184,90 +184,84 @@ async function start() {
       }
     });
   }
-  else
-  {
-    browser.runtime.onMessage.addListener(async function (request, sender, sendResponse) {
-      console.log("onMessage: " + request.action);
-      console.log("sender.tab.url: " + sender.tab.url);
-      console.log("sender.tab.id: " + sender.tab.id);
-      switch (request.action) {
-        case "appeal-label":
-          browser.tabs.sendMessage(sender.tab.id,{
-            "action": "appeal-label",
-            "url": request.url
-          }).then(() => {
-            //?sendResponse({ response: "Response from background script" });
-          });
-          break;
-        case "moderate":
-          browser.tabs.create({
-            url: getURL('moderation.html')
-          });
-          break;
-        case "options":
-          browser.tabs.create({
-            url: getURL('options.html')
-          });
-          break;
-        case "wiawbot":
-          browser.tabs.create({
-            url: getURL('wiawbot.html')
-          });
-          break;
-        case "report-transphobe":
-          browser.tabs.sendMessage(sender.tab.id, {
-            "action": "report-transphobe",
-            "url": request.url
-          }).then((response) => {
-            // ?
-          });
-          break;
-        case "run-setup":
-          browser.tabs.create({
-            url: getURL('start.html')
-          });
-          break;
-        case "search-tweets":
-          browser.tabs.sendMessage(sender.tab.id, {
-            "action": "search-tweets",
-            "url": request.url
-          }).then((response) => {
-            if (response) {
-              browser.tabs.create({
-                url: "https://twitter.com/search?q=from%3A" + response + "%20(trans%20OR%20transgender%20OR%20gender%20OR%20TERF%20OR%20cis)&src=typed_query&f=live"
-              });
-            }
-          });
-          break;
-        case "update-database":
-          browser.tabs.sendMessage(sender.tab.id, {
-            "action": "update-database"
-          }).then((response) => {
-            // ?
-          });
-          break;
-          case "request-platforminfo":
-            await getPlatform();
-            console.log("request-platforminfo: " +platformInfo.os);
-            browser.tabs.sendMessage(sender.tab.id, {
-              "action": "platforminfo",
-              "platform": platformInfo
-            }).then((response) => {
-              // ?
-            });
-            break;
-        default:
-          // Do not process.
-          break;
-      }
-    });
-  }
-
-
   console.log("start complete");
 }
 
-
+browser.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+  console.log("onMessage: " + request.action);
+  console.log("sender.tab.url: " + sender.tab.url);
+  console.log("sender.tab.id: " + sender.tab.id);
+  switch (request.action) {
+    case "appeal-label":
+      browser.tabs.sendMessage(sender.tab.id,{
+        "action": "appeal-label",
+        "url": request.url
+      }).then(() => {
+        //?sendResponse({ response: "Response from background script" });
+      });
+      return Promise.resolve("done");
+    case "moderate":
+      browser.tabs.create({
+        url: getURL('moderation.html')
+      });
+      return Promise.resolve("done");
+    case "options":
+      browser.tabs.create({
+        url: getURL('options.html')
+      });
+      return Promise.resolve("done");
+    case "wiawbot":
+      browser.tabs.create({
+        url: getURL('wiawbot.html')
+      });
+      return Promise.resolve("done");
+    case "report-transphobe":
+      browser.tabs.sendMessage(sender.tab.id, {
+        "action": "report-transphobe",
+        "url": request.url
+      }).then((response) => {
+        // ?
+      });
+      return Promise.resolve("done");
+    case "run-setup":
+      browser.tabs.create({
+        url: getURL('start.html')
+      });
+      return Promise.resolve("done");
+    case "search-tweets":
+      browser.tabs.sendMessage(sender.tab.id, {
+        "action": "search-tweets",
+        "url": request.url
+      }).then((response) => {
+        if (response) {
+          browser.tabs.create({
+            url: "https://twitter.com/search?q=from%3A" + response + "%20(trans%20OR%20transgender%20OR%20gender%20OR%20TERF%20OR%20cis)&src=typed_query&f=live"
+          });
+        }
+      });
+      return Promise.resolve("done");
+    case "update-database":
+      browser.tabs.sendMessage(sender.tab.id, {
+        "action": "update-database"
+      }).then((response) => {
+        // ?
+      });
+      return Promise.resolve("done");
+    case "request-platforminfo":
+      getPlatform();
+      console.log("request-platforminfo: " +platformInfo.os);
+      browser.tabs.sendMessage(sender.tab.id, {
+        "action": "platforminfo",
+        "platform": platformInfo
+      }).then((response) => {
+        // ?
+      });
+      return Promise.resolve("done");
+    default:
+      return false;
+      // Do not process.
+  }
+});
 
 
 function getURL(path) {

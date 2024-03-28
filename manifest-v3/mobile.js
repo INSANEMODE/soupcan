@@ -167,5 +167,9 @@ browser.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     }
     sendResponse("platformInfo done");
     console.log("mobile listener sent platformInfo done");
+    return Promise.resolve("done");
+    
+
   }
+  return false;
 });
