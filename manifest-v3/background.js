@@ -5,21 +5,31 @@ const blueBlockerExtensionIds = [
   "{119be3f3-597c-4f6a-9caf-627ee431d374}", // Firefox
   "jphoieibjlbddgacnjpfjphmpambipfl" // local testing
 ];
+let platformInfo;
+async function getPlatform(){
+  platformInfo = await browser.runtime.getPlatformInfo();
+  return platformInfo;
+};
+
 
 function iOS() {
   return [
-    'iPad Simulator',
-    'iPhone Simulator',
-    'iPod Simulator',
-    'iPad',
-    'iPhone',
-    'iPod'
-  ].includes(navigator.platform) || navigator.maxTouchPoints &&
-  navigator.maxTouchPoints > 2 &&
-  /MacIntel/.test(navigator.platform);
+    "ios"
+  ].includes(platformInfo.os);
+}
+function android() {
+  return [
+    "android"
+  ].includes(platformInfo.os);
+}
+function isMobile() {
+  return [
+    "android", "ios"
+  ].includes(platformInfo.os);
 }
 
-function start() {
+async function start() {
+  await getPlatform();
   initDatabase();
 
   browser.storage.local.get(["database", "state"], v => {
@@ -45,8 +55,8 @@ function start() {
           browser.storage.local.set({
             "is_moderator": true
           });
-          if (!iOS()) {
-            browser.contextMenus.create({
+          if (!isMobile()) {
+            browser?.contextMenus.create({
               id: "moderate",
               title: browser.i18n.getMessage("actionModerateReports"),
               contexts: ["page"]
@@ -66,7 +76,12 @@ function start() {
     browser.menus = browser.contextMenus;
   }
 
-  if (!iOS()) {
+  
+  if (!isMobile() ) {
+    if (!browser.menus) {
+      browser.menus = browser.contextMenus;
+    }
+    console.log("Adding context menus");
     browser.contextMenus.create({
       id: "report-transphobe",
       title: browser.i18n.getMessage("actionReportTransphobe"),
@@ -105,71 +120,155 @@ function start() {
       title: browser.i18n.getMessage("actionWiawbot"),
       contexts: ["page"]
     });
+
+    browser.contextMenus.onClicked.addListener(function (info, tab) {
+      switch (info.menuItemId) {
+        case "appeal-label":
+          browser.tabs.sendMessage(tab.id, {
+            "action": "appeal-label",
+            "url": info.linkUrl
+          }).then((response) => {
+            // ?
+          });
+          break;
+        case "moderate":
+          browser.tabs.create({
+            url: getURL('moderation.html')
+          });
+          break;
+        case "options":
+          browser.tabs.create({
+            url: getURL('options.html')
+          });
+          break;
+        case "wiawbot":
+          browser.tabs.create({
+            url: getURL('wiawbot.html')
+          });
+          break;
+        case "report-transphobe":
+          browser.tabs.sendMessage(tab.id, {
+            "action": "report-transphobe",
+            "url": info.linkUrl
+          }).then((response) => {
+            // ?
+          });
+          break;
+        case "run-setup":
+          browser.tabs.create({
+            url: getURL('start.html')
+          });
+          break;
+        case "search-tweets":
+          browser.tabs.sendMessage(tab.id, {
+            "action": "search-tweets",
+            "url": info.linkUrl
+          }).then((response) => {
+            if (response) {
+              browser.tabs.create({
+                url: "https://twitter.com/search?q=from%3A" + response + "%20(trans%20OR%20transgender%20OR%20gender%20OR%20TERF%20OR%20cis)&src=typed_query&f=live"
+              });
+            }
+          });
+          break;
+        case "update-database":
+          browser.tabs.sendMessage(tab.id, {
+            "action": "update-database"
+          }).then((response) => {
+            // ?
+          });
+          break;
+        default:
+          // Do not process.
+          break;
+      }
+    });
+  }
+  else
+  {
+    browser.runtime.onMessage.addListener(async function (request, sender, sendResponse) {
+      console.log("onMessage: " + request.action);
+      console.log("sender.tab.url: " + sender.tab.url);
+      console.log("sender.tab.id: " + sender.tab.id);
+      switch (request.action) {
+        case "appeal-label":
+          browser.tabs.sendMessage(sender.tab.id,{
+            "action": "appeal-label",
+            "url": request.url
+          }).then(() => {
+            //?sendResponse({ response: "Response from background script" });
+          });
+          break;
+        case "moderate":
+          browser.tabs.create({
+            url: getURL('moderation.html')
+          });
+          break;
+        case "options":
+          browser.tabs.create({
+            url: getURL('options.html')
+          });
+          break;
+        case "wiawbot":
+          browser.tabs.create({
+            url: getURL('wiawbot.html')
+          });
+          break;
+        case "report-transphobe":
+          browser.tabs.sendMessage(sender.tab.id, {
+            "action": "report-transphobe",
+            "url": request.url
+          }).then((response) => {
+            // ?
+          });
+          break;
+        case "run-setup":
+          browser.tabs.create({
+            url: getURL('start.html')
+          });
+          break;
+        case "search-tweets":
+          browser.tabs.sendMessage(sender.tab.id, {
+            "action": "search-tweets",
+            "url": request.url
+          }).then((response) => {
+            if (response) {
+              browser.tabs.create({
+                url: "https://twitter.com/search?q=from%3A" + response + "%20(trans%20OR%20transgender%20OR%20gender%20OR%20TERF%20OR%20cis)&src=typed_query&f=live"
+              });
+            }
+          });
+          break;
+        case "update-database":
+          browser.tabs.sendMessage(sender.tab.id, {
+            "action": "update-database"
+          }).then((response) => {
+            // ?
+          });
+          break;
+          case "request-platforminfo":
+            await getPlatform();
+            console.log("request-platforminfo: " +platformInfo.os);
+            browser.tabs.sendMessage(sender.tab.id, {
+              "action": "platforminfo",
+              "platform": platformInfo
+            }).then((response) => {
+              // ?
+            });
+            break;
+        default:
+          // Do not process.
+          break;
+      }
+    });
   }
 
-  browser.contextMenus.onClicked.addListener(function (info, tab) {
-    switch (info.menuItemId) {
-      case "appeal-label":
-        browser.tabs.sendMessage(tab.id, {
-          "action": "appeal-label",
-          "url": info.linkUrl
-        }).then((response) => {
-          // ?
-        });
-        break;
-      case "moderate":
-        browser.tabs.create({
-          url: getURL('moderation.html')
-        });
-        break;
-      case "options":
-        browser.tabs.create({
-          url: getURL('options.html')
-        });
-        break;
-      case "wiawbot":
-        browser.tabs.create({
-          url: getURL('wiawbot.html')
-        });
-        break;
-      case "report-transphobe":
-        browser.tabs.sendMessage(tab.id, {
-          "action": "report-transphobe",
-          "url": info.linkUrl
-        }).then((response) => {
-          // ?
-        });
-        break;
-      case "run-setup":
-        browser.tabs.create({
-          url: getURL('start.html')
-        });
-        break;
-      case "search-tweets":
-        browser.tabs.sendMessage(tab.id, {
-          "action": "search-tweets",
-          "url": info.linkUrl
-        }).then((response) => {
-          if (response) {
-            browser.tabs.create({
-              url: "https://twitter.com/search?q=from%3A" + response + "%20(trans%20OR%20transgender%20OR%20gender%20OR%20TERF%20OR%20cis)&src=typed_query&f=live"
-            });
-          }
-        });
-        break;
-      case "update-database":
-        browser.tabs.sendMessage(tab.id, {
-          "action": "update-database"
-        }).then((response) => {
-          // ?
-        });
-        break;
-      default:
-        // Do not process.
-        break;
-    }
-  });
+
+  console.log("start complete");
 }
+
+
+
 
 function getURL(path) {
   return chrome.runtime.getURL(path);

@@ -7,23 +7,18 @@ const Svgs = {
     '<g><path d="M9.094 3.095c-3.314 0-6 2.686-6 6s2.686 6 6 6c1.657 0 3.155-.67 4.243-1.757 1.087-1.088 1.757-2.586 1.757-4.243 0-3.314-2.686-6-6-6zm-9 6c0-4.971 4.029-9 9-9s9 4.029 9 9c0 1.943-.617 3.744-1.664 5.215l4.475 4.474-2.122 2.122-4.474-4.475c-1.471 1.047-3.272 1.664-5.215 1.664-4.97-.001-8.999-4.03-9-9z"></path></g>',
 };
 
-const platformInfo = await browser.runtime.getPlatformInfo();
-
-
-if (["ios", "android"].includes(platformInfo.os)) {
-  const dropdownObserver = new MutationObserver(handleDropdownMenus);
-  dropdownObserver.observe(document.body, {
-    childList: true,
-    subtree: true,
-    attributes: true,
+let platformInfo;
+async function getPlatformInfo() {
+  console.log("mobile.getPlatformInfo");
+  let sending = browser.runtime.sendMessage({
+    action: "request-platforminfo",
   });
-} else {
-  console.debug("desktop platforms not supported for this script");
+  sending.then();
 }
-
+getPlatformInfo();
 async function addMenuItemToTweetDropdownMenu(node) {
   await addMenuItem(
-    browser.i18n.getMessage("searchTweets"),
+    browser.i18n.getMessage("searchTweets").slice("🔍".length),
     Svgs.SEARCH,
     (user) => {
       let sending = browser.runtime.sendMessage({
@@ -34,7 +29,7 @@ async function addMenuItemToTweetDropdownMenu(node) {
     }
   );
   await addMenuItem(
-    browser.i18n.getMessage("actionAppealLabel"),
+    browser.i18n.getMessage("actionAppealLabel").slice("😇".length),
     Svgs.APPEAL,
     (user) => {
       let sending = browser.runtime.sendMessage({
@@ -45,7 +40,7 @@ async function addMenuItemToTweetDropdownMenu(node) {
     }
   );
   await addMenuItem(
-    browser.i18n.getMessage("actionReportTransphobe"),
+    browser.i18n.getMessage("actionReportTransphobe").slice("🍅".length),
     Svgs.REPORT,
     (user) => {
       let sending = browser.runtime.sendMessage({
@@ -61,7 +56,7 @@ async function addMenuItemToTweetDropdownMenu(node) {
 async function addMenuItem(text, icon, callback) {
   console.log(`adding "${text}" menu item`);
 
-  link = await getElement(
+  let link = await getElement(
     `#layers div[data-testid="Dropdown"] div[tabindex="0"]`,
     {
       name: "dropdown menu item index 0",
@@ -70,13 +65,16 @@ async function addMenuItem(text, icon, callback) {
   );
   let user = link.querySelector("span").textContent.split("@")[1];
   if (!user) {
-    link = await getElement(
-      `#layers div[data-testid="Dropdown"] div[tabindex="1"]`,
-      {
-        name: "dropdown menu item index 1",
-        timeout: 1000,
-      }
+    let links = document.querySelectorAll(
+      `#layers div[data-testid="Dropdown"] div[tabindex`
     );
+    link = null;
+    for (let index = 0; index < links.length; index++) {
+      if (links[index].querySelector("span").textContent.includes("@")) {
+        link = links[index];
+        break;
+      }
+    }
     user = link.querySelector("span").textContent.split("@")[1];
   }
   if (!link || !user) return;
@@ -152,3 +150,22 @@ function getElement(
     queryElement();
   });
 }
+browser.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+  console.log("got message", request);
+  if (request.action == "platforminfo") {
+    platformInfo = request.platform;
+    console.log("mobile listener got platformInfo", platformInfo);
+    if (["ios", "android"].includes(platformInfo.os)) {
+      const dropdownObserver = new MutationObserver(handleDropdownMenus);
+      dropdownObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+      });
+    } else {
+      console.debug("desktop platforms not supported for this script");
+    }
+    sendResponse("platformInfo done");
+    console.log("mobile listener sent platformInfo done");
+  }
+});
