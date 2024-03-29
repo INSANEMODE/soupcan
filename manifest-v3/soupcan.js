@@ -1585,7 +1585,8 @@ browser.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 
       }
 
-      const clonedTweetButton = document.querySelector("a[data-testid='SideNav_NewTweet_Button'], #navbar-tweet-button").cloneNode(true);
+      const clonedTweetButton = document.querySelector("a[data-testid='SideNav_NewTweet_Button'], #navbar-tweet-button") ? document.querySelector("a[data-testid='SideNav_NewTweet_Button'], #navbar-tweet-button").cloneNode(true) : document.querySelector("#layers div[data-testid='FloatingActionButtonBase']").cloneNode(true);
+
       const icon = clonedTweetButton.querySelector("div[dir='ltr'] svg");
       if (icon) {
         icon.remove();

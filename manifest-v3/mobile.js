@@ -9,15 +9,17 @@ const Svgs = {
 
 let platformInfo;
 async function getPlatformInfo() {
-  console.log("mobile.getPlatformInfo");
+  console.debug("mobile.getPlatformInfo");
   let sending = browser.runtime.sendMessage({
     action: "request-platforminfo",
   });
   sending.then();
 }
 getPlatformInfo();
-async function addMenuItemToTweetDropdownMenu(node) {
+async function addMenuItemToTweetMenu(node, type) {
+  console.debug("addMenuItemToTweetMenu", node, type);
   await addMenuItem(
+    type,
     browser.i18n.getMessage("searchTweets").slice("🔍".length),
     Svgs.SEARCH,
     (user) => {
@@ -29,6 +31,7 @@ async function addMenuItemToTweetDropdownMenu(node) {
     }
   );
   await addMenuItem(
+    type,
     browser.i18n.getMessage("actionAppealLabel").slice("😇".length),
     Svgs.APPEAL,
     (user) => {
@@ -40,6 +43,7 @@ async function addMenuItemToTweetDropdownMenu(node) {
     }
   );
   await addMenuItem(
+    type,
     browser.i18n.getMessage("actionReportTransphobe").slice("🍅".length),
     Svgs.REPORT,
     (user) => {
@@ -53,34 +57,31 @@ async function addMenuItemToTweetDropdownMenu(node) {
   );
 }
 
-async function addMenuItem(text, icon, callback) {
+async function addMenuItem(type, text, icon, callback) {
   console.log(`adding "${text}" menu item`);
 
-  let link = await getElement(
-    `#layers div[data-testid="Dropdown"] div[tabindex="0"]`,
-    {
-      name: "dropdown menu item index 0",
-      timeout: 1000,
-    }
-  );
+  let link = await getElement(`#layers div[data-testid="${type}"]`, {
+    name: `${type} menu item`,
+    timeout: 1000,
+  });
   let user = link.querySelector("span").textContent.split("@")[1];
-  if (!user) {
-    let links = document.querySelectorAll(
-      `#layers div[data-testid="Dropdown"] div[tabindex`
-    );
-    link = null;
-    for (let index = 0; index < links.length; index++) {
-      if (links[index].querySelector("span").textContent.includes("@")) {
-        link = links[index];
-        break;
-      }
+  let customMenuItems = document.querySelectorAll(
+    `#layers div[data-testid="custom-menu-item"]`
+  );
+  let menuitemexists = false;
+  for (let index = 0; index < customMenuItems.length; index++) {
+    if (
+      customMenuItems[index].querySelector("span").textContent.includes(text)
+    ) {
+      console.debug("menu item already exists, not adding new one");
+      return;
+
     }
-    user = link.querySelector("span").textContent.split("@")[1];
   }
+
   if (!link || !user) return;
 
   let newMenuItem = /** @type {HTMLElement} */ (link.cloneNode(true));
-  newMenuItem.classList.add("custom-menu-item");
   newMenuItem.setAttribute("data-testid", "custom-menu-item");
   newMenuItem.querySelector("span").textContent = text;
   newMenuItem.querySelector("svg").innerHTML = icon;
@@ -88,18 +89,18 @@ async function addMenuItem(text, icon, callback) {
     e.preventDefault();
     callback(user);
   });
-  link.parentElement.insertAdjacentElement("afterend", newMenuItem);
+  link.parentElement.insertAdjacentElement("afterbegin", newMenuItem);
 }
 
-function handleDropdownMenus(mutationList, dropdownObserver) {
+function handleMenus(mutationList, menuObserver) {
   mutationList.forEach(async (mutation) => {
     if (mutation.type === "childList") {
       mutation.addedNodes.forEach(async (node) => {
         if (
           node.nodeType === Node.ELEMENT_NODE &&
-          node.querySelector('#layers div[data-testid="Dropdown"]')
+          node.querySelector('#layers div[data-testid="block"]')
         ) {
-          await addMenuItemToTweetDropdownMenu(node);
+          await addMenuItemToTweetMenu(node, "block");
         }
       });
     }
@@ -156,11 +157,10 @@ browser.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     platformInfo = request.platform;
     console.log("mobile listener got platformInfo", platformInfo);
     if (["ios", "android"].includes(platformInfo.os)) {
-      const dropdownObserver = new MutationObserver(handleDropdownMenus);
-      dropdownObserver.observe(document.body, {
+      const menuObserver = new MutationObserver(handleMenus);
+      menuObserver.observe(document.body, {
         childList: true,
         subtree: true,
-        attributes: true,
       });
     } else {
       console.debug("desktop platforms not supported for this script");
@@ -168,8 +168,6 @@ browser.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     sendResponse("platformInfo done");
     console.log("mobile listener sent platformInfo done");
     return Promise.resolve("done");
-    
-
   }
   return false;
 });
