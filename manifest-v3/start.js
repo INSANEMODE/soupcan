@@ -10,7 +10,6 @@ var downloadButton = document.getElementById("download-button");
 var closeButton = document.getElementById("close-button");
 var continueButton = document.getElementById("continue-button");
 var continueButton2 = document.getElementById("continue-button-2");
-var continueButton3 = document.getElementById("continue-button-3");
 var loginButton = document.getElementById("login-button");
 var progressBarWrapper = document.getElementById("progress-bar-wrapper");
 var progressBar = document.getElementById("progress-bar");
