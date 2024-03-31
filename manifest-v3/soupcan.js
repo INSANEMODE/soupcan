@@ -1558,6 +1558,7 @@ async function updateDatabase(sendResponse) {
 }
 
 let contextMenuElement;
+let TweetMenuElement;
 // Receive messages from background script
 browser.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   let localUrl;
@@ -1577,13 +1578,34 @@ browser.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         return true;
       }
       const identifier = getIdentifier(localUrl);
+      if(contextMenuElement) {
+        try {
+          console.log("contextMenuElement", contextMenuElement);
+          initialReason = contextMenuElement.closest("article").querySelector("a[href*='status'][href*='" + identifier + "' i]").href;
+          initialReason += " - \"" + contextMenuElement.closest("article").querySelector("[data-testid='tweetText']").innerText + "\"";
+          console.log("initialReason", initialReason);
+        } catch {
 
-      try {
-        initialReason = contextMenuElement.closest("article").querySelector("a[href*='status'][href*='" + identifier + "' i]").href;
-        initialReason += " - \"" + contextMenuElement.closest("article").querySelector("[data-testid='tweetText']").innerText + "\"";
-      } catch {
-
+  
+        }
       }
+      else if(TweetMenuElement){
+        console.log("TweetMenuElement", TweetMenuElement);
+        try {
+          initialReason = TweetMenuElement.closest("article").querySelector("a[href*='status'][href*='" + identifier + "' i]").href;
+          initialReason += " - \"" + TweetMenuElement.closest("article").querySelector("[data-testid='tweetText']").innerText + "\"";
+          console.log("initialReason", initialReason);
+          TweetMenuElement = null;
+        } catch {
+
+        }
+      }
+      else
+      {
+        console.log("no contextMenuElement or TweetMenuElement found");
+      }
+
+
 
       const clonedTweetButton = document.querySelector("a[data-testid='SideNav_NewTweet_Button'], #navbar-tweet-button") ? document.querySelector("a[data-testid='SideNav_NewTweet_Button'], #navbar-tweet-button").cloneNode(true) : document.querySelector("#layers div[data-testid='FloatingActionButtonBase']").cloneNode(true);
 
@@ -1783,6 +1805,35 @@ function reloadLocalDb() {
     }
   });
 }
+TweetMenuElement = null;
+function addListenerToTweetMenuButton(button) {
+  if (!button) return;
+  button.addEventListener("click", (event) => {
+    TweetMenuElement = event.target;//.parentElement;
+}
+  );
+
+}
+function handleTweetMenus(mutationList, menuObserver) {
+  mutationList.forEach(async (mutation) => {
+    if (mutation.type === "childList") {
+      mutation.addedNodes.forEach(async (node) => {
+        if (
+          node.nodeType === Node.ELEMENT_NODE &&
+          node.querySelector('article[data-testid="tweet"] div[data-testid="caret"]')
+        ) {
+          addListenerToTweetMenuButton(node);
+        }
+      });
+    }
+  });
+}
+
+const menuObserver = new MutationObserver(handleTweetMenus);
+menuObserver.observe(document.body, {
+  childList: true,
+  subtree: true,
+});
 
 init();
 intervals.push(setInterval(checkForInvalidExtensionContext, 1000));

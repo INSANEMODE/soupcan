@@ -8,6 +8,9 @@ const blueBlockerExtensionIds = [
 let platformInfo;
 async function getPlatform(){
   platformInfo = await browser.runtime.getPlatformInfo();
+  // used for local testing
+  // platformInfo = new Object();
+  // platformInfo.os = "android";
   return platformInfo;
 };
 
