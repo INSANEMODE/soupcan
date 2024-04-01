@@ -1645,7 +1645,8 @@ browser.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         }
         textArea.after(clonedTweetButton);
 
-        clonedTweetButton.addEventListener('click', async function () {
+        clonedTweetButton.addEventListener('click', async function (e) {
+          e.preventDefault();
           textArea.disabled = true;
           const submitReason = textArea.value;
           const awnPopupWrapper = document.getElementById("awn-popup-wrapper");
