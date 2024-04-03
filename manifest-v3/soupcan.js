@@ -1607,13 +1607,13 @@ browser.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 
 
 
-      const clonedTweetButton = document.querySelector("a[data-testid='SideNav_NewTweet_Button'], #navbar-tweet-button") ? document.querySelector("a[data-testid='SideNav_NewTweet_Button'], #navbar-tweet-button").cloneNode(true) : document.querySelector("#layers div[data-testid='FloatingActionButtonBase']").cloneNode(true);
+      const clonedTweetButton = document.querySelector("a[data-testid='SideNav_NewTweet_Button'], #navbar-tweet-button") ? document.querySelector("a[data-testid='SideNav_NewTweet_Button'], #navbar-tweet-button").cloneNode(true) : document.querySelector("#layers div[data-testid='FloatingActionButtonBase']") ? document.querySelector("#layers div[data-testid='FloatingActionButtonBase']").cloneNode(true) : TweetMenuElement?.closest("article")?.querySelector('div[data-testid="reply"]')?.cloneNode(true);
 
-      const icon = clonedTweetButton.querySelector("div[dir='ltr'] svg");
+      const icon = clonedTweetButton?.querySelector("div[dir='ltr'] svg");
       if (icon) {
-        icon.remove();
+        icon?.remove();
       }
-      clonedTweetButton.removeAttribute("href");
+      clonedTweetButton?.removeAttribute("href");
 
       for (const span of clonedTweetButton.querySelectorAll('span')) {
         if (span.id !== "navbar-tweet-highlight") {

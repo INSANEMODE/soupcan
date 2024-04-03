@@ -19,6 +19,7 @@ getPlatformInfo();
 async function addMenuItemToTweetMenu(node, type) {
   console.debug("addMenuItemToTweetMenu", node, type);
   await addMenuItem(
+    node,
     type,
     browser.i18n.getMessage("searchTweets").slice("🔍".length),
     Svgs.SEARCH,
@@ -31,6 +32,7 @@ async function addMenuItemToTweetMenu(node, type) {
     }
   );
   await addMenuItem(
+    node,
     type,
     browser.i18n.getMessage("actionAppealLabel").slice("😇".length),
     Svgs.APPEAL,
@@ -43,6 +45,7 @@ async function addMenuItemToTweetMenu(node, type) {
     }
   );
   await addMenuItem(
+    node,
     type,
     browser.i18n.getMessage("actionReportTransphobe").slice("🍅".length),
     Svgs.REPORT,
@@ -57,7 +60,7 @@ async function addMenuItemToTweetMenu(node, type) {
   );
 }
 
-async function addMenuItem(type, text, icon, callback) {
+async function addMenuItem(node, type, text, icon, callback) {
   console.log(`adding "${text}" menu item`);
 
   let link = await getElement(`#layers div[data-testid="${type}"]`, {
@@ -88,6 +91,7 @@ async function addMenuItem(type, text, icon, callback) {
   newMenuItem.addEventListener("click", (e) => {
     e.preventDefault();
     callback(user);
+    //node.style.display = 'none';
   });
   link.parentElement.insertAdjacentElement("afterbegin", newMenuItem);
 }
