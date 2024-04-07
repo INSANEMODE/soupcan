@@ -17,7 +17,6 @@ function initDatabase() {
     }
   });
 }
-
 function hash(string) {
   const utf8 = new TextEncoder().encode(string);
   return crypto.subtle.digest('SHA-256', utf8).then((hashBuffer) => {
@@ -32,6 +31,7 @@ async function getDatabaseEntry(identifier) {
 
   const databaseEntry = database["entries"][hashedIdentifier];
   let localEntry = localEntries[hashedIdentifier];
+
   let finalEntry = databaseEntry;
 
   if (localEntry) {
@@ -61,11 +61,11 @@ async function getDatabaseEntry(identifier) {
     }
   }
 
-  if (!!databaseEntry && databaseEntry["label"] == "transphobe" && !!localEntry && localEntry["label"] == "local-transphobe") {
+  if (!!databaseEntry && databaseEntry["label"] === "transphobe" && !!localEntry && localEntry["label"] === "local-transphobe") {
     // Report was accepted
     finalEntry = databaseEntry;
   }
-  if (!!databaseEntry && databaseEntry["label"] == "appealed" && !!localEntry && localEntry["label"] == "local-appeal") {
+  if (!!databaseEntry && databaseEntry["label"] === "appealed" && !!localEntry && localEntry["label"] === "local-appeal") {
     // Appeal was accepted
     finalEntry = databaseEntry;
   }
@@ -73,6 +73,6 @@ async function getDatabaseEntry(identifier) {
   if (finalEntry && finalEntry["label"] === "appealed") {
     return null;
   }
-  
+
   return finalEntry;
 }
