@@ -18,17 +18,23 @@ async function getPlatformInfo() {
 getPlatformInfo();
 async function addMenuItemToTweetMenu(node, type) {
   console.debug("addMenuItemToTweetMenu", node, type);
+  let menu = document.querySelector(
+    `#layers div[data-testid="${type}"]`
+  ).parentElement;
   await addMenuItem(
     node,
     type,
     browser.i18n.getMessage("searchTweets").slice("🔍".length),
     Svgs.SEARCH,
     (user) => {
+      menu.childNodes[menu.childElementCount - 1].click();
       let sending = browser.runtime.sendMessage({
         action: "search-tweets",
         url: "https://twitter.com/" + user,
       });
-      sending.then();
+      sending.then( () => {
+        console.log("searchTweets", menu.childNodes[menu.childElementCount - 1] );
+      });
     }
   );
   await addMenuItem(
@@ -37,11 +43,14 @@ async function addMenuItemToTweetMenu(node, type) {
     browser.i18n.getMessage("actionAppealLabel").slice("😇".length),
     Svgs.APPEAL,
     (user) => {
+      menu.childNodes[menu.childElementCount - 1].click();
       let sending = browser.runtime.sendMessage({
         action: "appeal-label",
         url: "https://twitter.com/" + user,
       });
-      sending.then();
+      sending.then( () => {
+        console.log("actionAppealLabel", menu.childNodes[menu.childElementCount - 1] );
+      });
     }
   );
   await addMenuItem(
@@ -50,12 +59,16 @@ async function addMenuItemToTweetMenu(node, type) {
     browser.i18n.getMessage("actionReportTransphobe").slice("🍅".length),
     Svgs.REPORT,
     (user) => {
+
+      menu.childNodes[menu.childElementCount - 1].click();
       let sending = browser.runtime.sendMessage({
         action: "report-transphobe",
         url: "https://twitter.com/" + user,
       });
 
-      sending.then();
+      sending.then( () => {
+        console.log("reportTransphobe", menu.childNodes[menu.childElementCount - 1] );
+      });
     }
   );
 }

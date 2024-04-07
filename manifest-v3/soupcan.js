@@ -1111,6 +1111,89 @@ async function countTerf(userCell) {
     count.textContent = countedTerfs + " / " + countedUserCells + " (" + percentage + "%)";
   }
 }
+function fallbackTransphobeCounter()
+{
+  let transphobeCountPanel = document.createElement('div');
+  transphobeCountPanel.id = 'floating-transphobe-panel';
+  transphobeCountPanel.style.position = 'fixed';
+
+  transphobeCountPanel.style.top = '5px';
+  transphobeCountPanel.style.left = '160px';
+
+  transphobeCountPanel.style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
+  transphobeCountPanel.style.padding = '5px';
+  transphobeCountPanel.style.borderRadius = '5px';
+  transphobeCountPanel.style.boxShadow = '0 2px 5px rgba(0, 0, 0, 0.2)';
+  transphobeCountPanel.style.zIndex = '9999'; // Ensure it's above other elements
+  transphobeCountPanel.style.color = 'black';
+  const h2 = document.createElement('h2');
+  const h2Span = document.createElement('span');
+  h2Span.innerText = '🥫 Transphobe Counter';
+  h2.appendChild(h2Span);
+  transphobeCountPanel.appendChild(h2);
+
+  const closeButton = document.createElement('button');
+  closeButton.innerText = '✖'; // Close icon
+  closeButton.style.color = 'black';
+  closeButton.style.position = 'absolute';
+  closeButton.style.top = '5px';
+  closeButton.style.right = '5px';
+  closeButton.style.border = 'none';
+  closeButton.style.backgroundColor = 'transparent';
+  closeButton.style.cursor = 'pointer';
+  closeButton.addEventListener('click', () => {
+      transphobeCountPanel.style.display = 'none';
+  });
+  transphobeCountPanel.appendChild(closeButton);
+
+for (let i = 0; i < 4; i++) {
+  const div = document.createElement('div');
+  div.setAttribute('tabindex', '0');
+  const innerDiv = document.createElement('div');
+  const innerDiv2 = document.createElement('div');
+  const innerDiv3 = document.createElement('div');
+  innerDiv.appendChild(innerDiv2);
+  innerDiv2.appendChild(innerDiv3);
+
+
+  const span = document.createElement('span');
+  span.innerText = ' ';
+  innerDiv3.appendChild(span);
+  div.appendChild(innerDiv);
+  transphobeCountPanel.appendChild(div);
+}
+
+  document.body.appendChild(transphobeCountPanel);
+  console.log("transphobeCountPanel", transphobeCountPanel);
+
+  window.addEventListener('resize', () => {
+    transphobeCountPanel.style.top = '5px';
+    transphobeCountPanel.style.left = '160px';
+  });
+  
+  let startX = 0;
+  let startY = 0;
+  let panelX = 0;
+  let panelY = 0;
+  
+  transphobeCountPanel.addEventListener('touchstart', (e) => {
+      const touch = e.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+      panelX = transphobeCountPanel.offsetLeft;
+      panelY = transphobeCountPanel.offsetTop;
+  });
+  
+  transphobeCountPanel.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      const touch = e.touches[0];
+      const offsetX = touch.clientX - startX;
+      const offsetY = touch.clientY - startY;
+      transphobeCountPanel.style.left = panelX + offsetX + 'px';
+      transphobeCountPanel.style.top = panelY + offsetY + 'px';
+  });
+  return transphobeCountPanel;
+}
 
 function doCountTerfs(kind) {
   if (checkForInvalidExtensionContext()) {
@@ -1132,16 +1215,22 @@ function doCountTerfs(kind) {
       usersCounted = [];
 
       // Create a copy of the "Who to follow" panel as a basis for the transphobe counter panel
-      const whatsHappeningDiv = document.querySelector("div[data-testid='sidebarColumn'] div[tabindex='0'] div>section[aria-labelledby]");
-      const whatsHappeningPanel = whatsHappeningDiv.parentElement.parentElement;
+      const whatsHappeningDiv = document?.querySelector("div[data-testid='sidebarColumn'] div[tabindex='0'] div>section[aria-labelledby]");
+      const whatsHappeningPanel = whatsHappeningDiv?.parentElement?.parentElement;
+      let transphobeCountPanel = document.getElementById("soupcan-terf-count");
 
       if (!whatsHappeningPanel || !whatsHappeningPanel.querySelector("a") || whatsHappeningPanel.querySelectorAll("div[tabindex='0'] div>div>div>span").length < 4) {
         // Not fully loaded
-        setTimeout(() => doCountTerfs(kind), 250);
-        return;
+        if(transphobeCountPanel == null)
+        {
+          console.log("transphobeCountPanel not ready yet");
+          transphobeCountPanel = whatsHappeningPanel?.cloneNode(true) ? whatsHappeningPanel?.cloneNode(true) : fallbackTransphobeCounter();
+          //setTimeout(() => doCountTerfs(kind), 250);
+          //return; //TODO: fix this for desktop
+        }
       }
 
-      const transphobeCountPanel = whatsHappeningPanel.cloneNode(true);
+      
       // Set the id for later reference
       transphobeCountPanel.id = "soupcan-terf-count";
       // Make the panel the right size
@@ -1149,29 +1238,29 @@ function doCountTerfs(kind) {
       // Change the heading
       transphobeCountPanel.querySelector("h2 span").innerText = "🥫 " + browser.i18n.getMessage("transphobeCounter");
       // Remove links
-      for (let linkEl of transphobeCountPanel.querySelectorAll("a")) {
+      for (let linkEl of transphobeCountPanel?.querySelectorAll("a")) {
         linkEl.remove();
       }
       // Remove all entries but the first in the panel
       let first = true;
-      transphobeCountPanel.querySelectorAll("section>div div[role='link']").forEach(el => {
+      transphobeCountPanel.querySelectorAll("section>div div[role='link']")?.forEach(el => {
         if (!first) {
           el.remove();
         }
         first = false;
       });
       // Remove picture
-      transphobeCountPanel.querySelector("div[style*='padding-bottom']").parentElement.parentElement.remove();
+      transphobeCountPanel.querySelector("div[style*='padding-bottom']")?.parentElement.parentElement.remove();
       // Remove the testid attribute to avoid conflicting queries
-      transphobeCountPanel.querySelector("section>div div[role='link']").removeAttribute("data-testid");
+      transphobeCountPanel.querySelector("section>div div[role='link']")?.removeAttribute("data-testid");
       // Unlink the anchor tags
-      transphobeCountPanel.querySelectorAll("div[role='link']").forEach(anchor => {
+      transphobeCountPanel.querySelectorAll("div[role='link']")?.forEach(anchor => {
         anchor.style.cursor = "default";
         anchor.style["pointer-events"] = "none";
       });
       // Change the labels
       let labelNumber = 0;
-      transphobeCountPanel.querySelectorAll("div[tabindex='0'] div>div>div>span").forEach(el => {
+      transphobeCountPanel.querySelectorAll("div[tabindex='0'] div>div>div>span")?.forEach(el => {
         switch (labelNumber) {
           case 0:
             el.childNodes[0].nodeValue = browser.i18n.getMessage("counterName_" + kind);
@@ -1191,7 +1280,7 @@ function doCountTerfs(kind) {
       });
       // Remove unnecessary labels
       let textDivsToRemove = [];
-      for (let textDiv of transphobeCountPanel.querySelectorAll("div[tabindex='0'] div>div>div>div")) {
+      for (let textDiv of transphobeCountPanel?.querySelectorAll("div[tabindex='0'] div>div>div>div")) {
         let allChildNodes = true;
         for (let textChildDiv of textDiv.childNodes) {
           if (textChildDiv.nodeType !== 3) {
@@ -1204,7 +1293,7 @@ function doCountTerfs(kind) {
       }
 
       for (let textDivToRemove of textDivsToRemove) {
-        textDivToRemove.remove();
+        textDivToRemove?.remove();
       }
 
       // transphobeCountPanel.querySelector("div span").textContent = browser.i18n.getMessage("counterName_" + kind) + " " + browser.i18n.getMessage("scrollInstructions");
@@ -1214,7 +1303,7 @@ function doCountTerfs(kind) {
       // countSpan.textContent = "0/0";
 
       // Add it to the page before the "What's happening" panel
-      whatsHappeningPanel.before(transphobeCountPanel);
+      whatsHappeningPanel?.before(transphobeCountPanel);
 
       document.querySelectorAll("[data-testid='primaryColumn'] [data-testid='UserCell']").forEach(userCell => {
         countTerf(userCell);
@@ -1556,7 +1645,17 @@ async function updateDatabase(sendResponse) {
 
   return true;
 }
-
+function createFallbackTweetButton() {
+  let fallback = document.createElement("a");
+  fallback.setAttribute("aria-label", "Send Report");
+  fallback.setAttribute("role", "link");
+  fallback.setAttribute("class", "css-175oi2r r-sdzlij r-1phboty r-rs99b7 r-lrvibr r-19yznuf r-64el8z r-1dye5f7 r-o7ynqc r-6416eg r-1ny4l3l r-1loqt21");
+  fallback.setAttribute("style", "background-color: rgb(29, 155, 240); border-color: rgba(0, 0, 0, 0);");
+  fallback.setAttribute("data-testid", "SideNav_NewTweet_Button");
+  fallback.innerHTML = `<div dir="ltr" class="css-1rynq56 r-bcqeeo r-qvutc0 r-37j5jr r-q4m81j r-a023e6 r-rjixqe r-b88u0q r-1awozwy r-6koalj r-18u37iz r-16y2uox r-1777fci" style="text-overflow: unset; color: rgb(255, 255, 255);"><span class="css-1qaijid r-dnmrzs r-1udh08x r-3s2u2q r-bcqeeo r-qvutc0 r-poiln3 r-1inkyih r-rjixqe" style="text-overflow: unset;">Send report</span></div>`;
+  console.log("fallback", fallback);
+  return fallback;
+}
 let contextMenuElement;
 let TweetMenuElement;
 // Receive messages from background script
@@ -1578,15 +1677,15 @@ browser.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         return true;
       }
       const identifier = getIdentifier(localUrl);
-      if(contextMenuElement) {
-        try {
-          console.log("contextMenuElement", contextMenuElement);
-          initialReason = contextMenuElement.closest("article").querySelector("a[href*='status'][href*='" + identifier + "' i]").href;
-          initialReason += " - \"" + contextMenuElement.closest("article").querySelector("[data-testid='tweetText']").innerText + "\"";
-          console.log("initialReason", initialReason);
-        } catch {
+if(contextMenuElement) {
+      try {
+console.log("contextMenuElement", contextMenuElement);
+        initialReason = contextMenuElement.closest("article").querySelector("a[href*='status'][href*='" + identifier + "' i]").href;
+        initialReason += " - \"" + contextMenuElement.closest("article").querySelector("[data-testid='tweetText']").innerText + "\"";
+console.log("initialReason", initialReason);
+      } catch {
 
-  
+      
         }
       }
       else if(TweetMenuElement){
@@ -1595,7 +1694,6 @@ browser.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
           initialReason = TweetMenuElement.closest("article").querySelector("a[href*='status'][href*='" + identifier + "' i]").href;
           initialReason += " - \"" + TweetMenuElement.closest("article").querySelector("[data-testid='tweetText']").innerText + "\"";
           console.log("initialReason", initialReason);
-          TweetMenuElement = null;
         } catch {
 
         }
@@ -1604,11 +1702,10 @@ browser.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
       {
         console.log("no contextMenuElement or TweetMenuElement found");
       }
-
-
-
-      const clonedTweetButton = document.querySelector("a[data-testid='SideNav_NewTweet_Button'], #navbar-tweet-button") ? document.querySelector("a[data-testid='SideNav_NewTweet_Button'], #navbar-tweet-button").cloneNode(true) : document.querySelector("#layers div[data-testid='FloatingActionButtonBase']") ? document.querySelector("#layers div[data-testid='FloatingActionButtonBase']").cloneNode(true) : TweetMenuElement?.closest("article")?.querySelector('div[data-testid="reply"]')?.cloneNode(true);
-
+      
+      const clonedTweetButton = document.querySelector("a[data-testid='SideNav_NewTweet_Button'], #navbar-tweet-button") ? document.querySelector("a[data-testid='SideNav_NewTweet_Button'], #navbar-tweet-button").cloneNode(true) : document.querySelector("#layers div[data-testid='FloatingActionButtonBase']") ? document.querySelector("#layers div[data-testid='FloatingActionButtonBase']").cloneNode(true) : createFallbackTweetButton();/*TweetMenuElement?.closest("article")?.querySelector('div[data-testid="reply"]')?.cloneNode(true)*/
+      console.log("clonedTweetButton", clonedTweetButton);
+      TweetMenuElement = null;
       const icon = clonedTweetButton?.querySelector("div[dir='ltr'] svg");
       if (icon) {
         icon?.remove();
@@ -1646,7 +1743,7 @@ browser.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         textArea.after(clonedTweetButton);
 
         clonedTweetButton.addEventListener('click', async function (e) {
-          e.preventDefault();
+e.preventDefault();
           textArea.disabled = true;
           const submitReason = textArea.value;
           const awnPopupWrapper = document.getElementById("awn-popup-wrapper");
@@ -1678,6 +1775,7 @@ browser.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
       });
     } catch (error) {
       notifier.alert(browser.i18n.getMessage("genericError", [error]));
+      console.error(error);
     }
   } else if (message.action === "appeal-label") {
     try {
