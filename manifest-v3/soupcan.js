@@ -1088,6 +1088,7 @@ let countedUserCells = 0;
 let usersCounted = [];
 
 async function countTerf(userCell) {
+  console.log("countTerf", userCell);
   const link = userCell.querySelector("a");
   if (link) {
     const href = link.getAttribute("href");
@@ -1095,6 +1096,7 @@ async function countTerf(userCell) {
     if (href && !usersCounted.includes(href)) {
       countedUserCells++;
       usersCounted.push(href);
+      console.log("countTerf", href, entry, entry["label"]);
       if (entry && entry["label"] && entry["label"].includes("transphobe")) {
         countedTerfs++;
         usersCounted.push(href);
@@ -1111,29 +1113,74 @@ async function countTerf(userCell) {
     count.textContent = countedTerfs + " / " + countedUserCells + " (" + percentage + "%)";
   }
 }
+
+
 function fallbackTransphobeCounter()
 {
   let transphobeCountPanel = document.createElement('div');
   transphobeCountPanel.id = 'floating-transphobe-panel';
   transphobeCountPanel.style.position = 'fixed';
 
-  transphobeCountPanel.style.top = '5px';
-  transphobeCountPanel.style.left = '160px';
 
+  transphobeCountPanel.style.top = '5px';
+  transphobeCountPanel.style.left = '20px';
+  transphobeCountPanel.style.transform = 'translate(80%, 0%)';
+  // transphobeCountPanel.style.width = '150px';
   transphobeCountPanel.style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
-  transphobeCountPanel.style.padding = '5px';
-  transphobeCountPanel.style.borderRadius = '5px';
+  transphobeCountPanel.style.padding = '10px';
+  transphobeCountPanel.style.borderRadius = '10px';
   transphobeCountPanel.style.boxShadow = '0 2px 5px rgba(0, 0, 0, 0.2)';
   transphobeCountPanel.style.zIndex = '9999'; // Ensure it's above other elements
   transphobeCountPanel.style.color = 'black';
-  const h2 = document.createElement('h2');
+  const h2 = document.createElement('h3');
   const h2Span = document.createElement('span');
-  h2Span.innerText = '🥫 Transphobe Counter';
+  h2Span.innerText = "🥫 " + browser.i18n.getMessage("transphobeCounter");
   h2.appendChild(h2Span);
   transphobeCountPanel.appendChild(h2);
 
+
+      // Minimize button
+      const minimizeButton = document.createElement('button');
+      minimizeButton.innerText = '—'; // Minus sign as minimize icon
+      minimizeButton.style.color = 'black';
+      minimizeButton.style.position = 'absolute';
+      minimizeButton.style.top = '5px';
+      minimizeButton.style.left = '5px';
+      minimizeButton.style.border = 'none';
+      minimizeButton.style.backgroundColor = 'transparent';
+      
+      minimizeButton.style.cursor = 'pointer';
+      minimizeButton.addEventListener('click', () => {
+          const counterText = document.querySelectorAll('[id="transphobe-count"]');
+          if (transphobeCountPanel.style.height === '40px') {
+              // Restore to original height
+              transphobeCountPanel.style.top = '5px';
+              transphobeCountPanel.style.left = '20px';
+              transphobeCountPanel.style.transform = 'translate(80%, 0%)';
+              transphobeCountPanel.style.height = '';
+              h2Span.style.display = '';
+              counterText[0].style.display = '';
+              counterText[1].style.display = '';
+              counterText[2].style.display = '';
+              counterText[3].style.display = '';
+          } else {
+              // Shrink the panel
+              transphobeCountPanel.style.top = '5px';
+              transphobeCountPanel.style.left = '20px';
+              transphobeCountPanel.style.transform = 'translate(300%, 0%)';
+              transphobeCountPanel.style.height = '40px';
+              h2Span.style.display = 'none';
+              counterText[0].style.display = 'none';
+              counterText[1].style.display = 'none';
+              counterText[2].style.display = 'none';
+              counterText[3].style.display = 'block';
+          }
+      });
+      transphobeCountPanel.appendChild(minimizeButton);
+
+
   const closeButton = document.createElement('button');
-  closeButton.innerText = '✖'; // Close icon
+  closeButton.innerText = '✖'; // Close icon ✖
   closeButton.style.color = 'black';
   closeButton.style.position = 'absolute';
   closeButton.style.top = '5px';
@@ -1152,6 +1199,7 @@ for (let i = 0; i < 4; i++) {
   const innerDiv = document.createElement('div');
   const innerDiv2 = document.createElement('div');
   const innerDiv3 = document.createElement('div');
+  // innerDiv3.id = 'transphobe-count';
   innerDiv.appendChild(innerDiv2);
   innerDiv2.appendChild(innerDiv3);
 
@@ -1159,7 +1207,9 @@ for (let i = 0; i < 4; i++) {
   const span = document.createElement('span');
   span.innerText = ' ';
   innerDiv3.appendChild(span);
+  div.id = `transphobe-count`;
   div.appendChild(innerDiv);
+
   transphobeCountPanel.appendChild(div);
 }
 
@@ -1168,7 +1218,8 @@ for (let i = 0; i < 4; i++) {
 
   window.addEventListener('resize', () => {
     transphobeCountPanel.style.top = '5px';
-    transphobeCountPanel.style.left = '160px';
+    transphobeCountPanel.style.left = '20px';
+    transphobeCountPanel.style.transform = 'translate(100%, 0%)';
   });
   
   let startX = 0;
@@ -1192,6 +1243,7 @@ for (let i = 0; i < 4; i++) {
       transphobeCountPanel.style.left = panelX + offsetX + 'px';
       transphobeCountPanel.style.top = panelY + offsetY + 'px';
   });
+
   return transphobeCountPanel;
 }
 
@@ -1236,7 +1288,7 @@ function doCountTerfs(kind) {
       // Make the panel the right size
       transphobeCountPanel.querySelector("div").style["min-height"] = "0";
       // Change the heading
-      transphobeCountPanel.querySelector("h2 span").innerText = "🥫 " + browser.i18n.getMessage("transphobeCounter");
+      transphobeCountPanel.querySelector("h2 span") ? transphobeCountPanel.querySelector("h2 span").innerText = "🥫 " + browser.i18n.getMessage("transphobeCounter") :transphobeCountPanel.querySelector("h3 span").innerText = "🥫 " + browser.i18n.getMessage("transphobeCounter") ;
       // Remove links
       for (let linkEl of transphobeCountPanel?.querySelectorAll("a")) {
         linkEl.remove();
@@ -1305,17 +1357,24 @@ function doCountTerfs(kind) {
       // Add it to the page before the "What's happening" panel
       whatsHappeningPanel?.before(transphobeCountPanel);
 
-      document.querySelectorAll("[data-testid='primaryColumn'] [data-testid='UserCell']").forEach(userCell => {
+      document.querySelectorAll("[data-testid='primaryColumn'] [data-testid='UserCell']") ? document.querySelectorAll("[data-testid='primaryColumn'] [data-testid='UserCell']").forEach(userCell => {
+        countTerf(userCell);
+      }) : document.querySelectorAll('div[class="user-item"]').forEach(userCell => {
         countTerf(userCell);
       });
 
+
+      //Array.from(userList.getElementsByClassName('user-item')).forEach(u => u.remove());
       const terfObserver = new MutationObserver(mutationsList => {
         for (const mutation of mutationsList) {
           if (lastUpdatedUrl.includes("follow")) {
             if (mutation.type === 'childList') {
+              //console.log("counting", mutation.addedNodes);
               for (const node of mutation.addedNodes) {
                 if (node instanceof HTMLDivElement) {
-                  const userCell = node.querySelector("[data-testid='UserCell']");
+                  //console.log("counting user-item", node.className);
+                  const userCell = node.className === "user-item" ? node : node.querySelector("[data-testid='UserCell']");
+                  //console.log("counting", userCell);
                   if (userCell) {
                     countTerf(userCell);
                   }
@@ -1327,7 +1386,8 @@ function doCountTerfs(kind) {
       });
       terfObserver.observe(document.body, {
         childList: true,
-        subtree: true
+        subtree: true,
+        attributes: true
       });
 
     } catch {
@@ -1933,7 +1993,258 @@ menuObserver.observe(document.body, {
   childList: true,
   subtree: true,
 });
+if ('function' === typeof(importScripts)) {
+  importScripts("database.js");
+}
 
+
+///api shit
+// const API = {
+//   account: {
+//       verifyCredentials: () => {
+//           return new Promise((resolve, reject) => {
+//               chrome.storage.local.get(['credentials'], d => {
+//                   if(d.credentials && Date.now() - d.credentials.date < 15000) {
+//                       return resolve(d.credentials.data);
+//                   }
+//                   fetch(`https://api.twitter.com/1.1/account/verify_credentials.json`, {
+//                       headers: {
+//                           "authorization": OLDTWITTER_CONFIG.public_token,
+//                           "x-csrf-token": OLDTWITTER_CONFIG.csrf,
+//                           "x-twitter-auth-type": "OAuth2Session"
+//                       },
+//                       credentials: "include"
+//                   }).then(response => response.json()).then(data => {
+//                       if (data.errors && data.errors[0].code === 32) {
+//                           chrome.storage.local.remove(["lastUserId", "credentials", "inboxData", "tweetDetails", "savedSearches", "discoverData", "userUpdates", "peopleRecommendations", "tweetReplies", "tweetLikers", "listData", "twitterSettings", "algoTimeline"], () => {});
+//                           return reject("Not logged in");
+//                       }
+//                       if (data.errors && data.errors[0]) {
+//                           return reject(data.errors[0].message);
+//                       }
+//                       resolve(data);
+//                       chrome.storage.local.set({credentials: {
+//                           date: Date.now(),
+//                           data
+//                       }}, () => {});
+//                       chrome.storage.local.get(['lastUserId'], d => {
+//                           if(typeof d.lastUserId === 'string') {
+//                               if(d.lastUserId !== data.id_str) {
+//                                   chrome.storage.local.remove(["credentials", "inboxData", "tweetDetails", "savedSearches", "discoverData", "userUpdates", "peopleRecommendations", "tweetReplies", "tweetLikers", "listData", "twitterSettings", "algoTimeline"], () => {
+//                                       chrome.storage.local.set({lastUserId: data.id_str}, () => {
+//                                           location.reload();
+//                                       });
+//                                   });
+//                               }
+//                           } else {
+//                               chrome.storage.local.set({lastUserId: data.id_str}, () => {});
+//                           }
+//                       });
+//                   }).catch(e => {
+//                       reject(e);
+//                   });
+//               });
+//           })
+//       },
+//     getFollowing: (id, cursor) => {
+//       return new Promise((resolve, reject) => {
+//           let obj = {
+//               "userId": id,
+//               "count": 100,
+//               "includePromotedContent": false
+//           };
+//           if(cursor) obj.cursor = cursor;
+//           fetch(`https://twitter.com/i/api/graphql/t-BPOrMIduGUJWO_LxcvNQ/Following?variables=${encodeURIComponent(JSON.stringify(obj))}&features=${encodeURIComponent(JSON.stringify({"rweb_lists_timeline_redesign_enabled":false,"responsive_web_graphql_exclude_directive_enabled":true,"verified_phone_label_enabled":false,"creator_subscriptions_tweet_preview_api_enabled":true,"responsive_web_graphql_timeline_navigation_enabled":true,"responsive_web_graphql_skip_user_profile_image_extensions_enabled":false,"tweetypie_unmention_optimization_enabled":true,"responsive_web_edit_tweet_api_enabled":true,"graphql_is_translatable_rweb_tweet_is_translatable_enabled":true,"view_counts_everywhere_api_enabled":true,"longform_notetweets_consumption_enabled":true,"responsive_web_twitter_article_tweet_consumption_enabled":false,"tweet_awards_web_tipping_enabled":false,"freedom_of_speech_not_reach_fetch_enabled":true,"standardized_nudges_misinfo":true,"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled":true,"longform_notetweets_rich_text_read_enabled":true,"longform_notetweets_inline_media_enabled":true,"responsive_web_media_download_video_enabled":false,"responsive_web_enhance_cards_enabled":false}))}`, {
+//               headers: {
+//                   "authorization": OLDTWITTER_CONFIG.public_token,
+//                   "x-csrf-token": OLDTWITTER_CONFIG.csrf,
+//                   "x-twitter-auth-type": "OAuth2Session",
+//                   "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+//               },
+//               credentials: "include"
+//           }).then(i => i.json()).then(data => {
+//               debugLog('user.getFollowing', 'start', {id, cursor, data});
+//               if (data.errors && data.errors[0].code === 32) {
+//                   return reject("Not logged in");
+//               }
+//               if (data.errors && data.errors[0]) {
+//                   return reject(data.errors[0].message);
+//               }
+//               let list = data.data.user.result.timeline.timeline.instructions.find(i => i.type === 'TimelineAddEntries').entries;
+//               const out = {
+//                   list: list.filter(e => e.entryId.startsWith('user-')).map(e => {
+//                       let user = e.content.itemContent.user_results.result;
+//                       if(!user) return;
+//                       user.legacy.id_str = user.rest_id;
+//                       if(user.is_blue_verified && !user.legacy.verified_type) {
+//                           user.legacy.verified = true;
+//                           user.legacy.verified_type = "Blue";
+//                       }
+//                       return user.legacy;
+//                   }).filter(e => e),
+//                   cursor: list.find(e => e.entryId.startsWith('cursor-bottom-')).content.value
+//               }
+//               debugLog('user.getFollowing', 'end', out);
+//               resolve(out);
+//           }).catch(e => {
+//               reject(e);
+//           });
+//       });
+//   },
+//   getFollowers: (id, cursor, count = 100) => {
+//       return new Promise((resolve, reject) => {
+//           let obj = {
+//               "userId": id,
+//               "count": count,
+//               "includePromotedContent": false,
+//               "withSuperFollowsUserFields": true,
+//               "withDownvotePerspective": false,
+//               "withReactionsMetadata": false,
+//               "withReactionsPerspective": false,
+//               "withSuperFollowsTweetFields": true,
+//               "withClientEventToken": false,
+//               "withBirdwatchNotes": false,
+//               "withVoice": true,
+//               "withV2Timeline": true
+//           };
+//           if(cursor) obj.cursor = cursor;
+//           fetch(`https://twitter.com/i/api/graphql/fJSopkDA3UP9priyce4RgQ/Followers?variables=${encodeURIComponent(JSON.stringify(obj))}&features=${encodeURIComponent(JSON.stringify({
+//               "dont_mention_me_view_api_enabled": true,
+//               "interactive_text_enabled": true,
+//               "responsive_web_uc_gql_enabled": false,
+//               "vibe_tweet_context_enabled": false,
+//               "responsive_web_edit_tweet_api_enabled": false,
+//               "standardized_nudges_misinfo": false,
+//               "responsive_web_enhance_cards_enabled": false
+//           }))}`, {
+//               headers: {
+//                   "authorization": OLDTWITTER_CONFIG.public_token,
+//                   "x-csrf-token": OLDTWITTER_CONFIG.csrf,
+//                   "x-twitter-auth-type": "OAuth2Session",
+//                   "content-type": "application/json"
+//               },
+//               credentials: "include"
+//           }).then(i => i.json()).then(data => {
+//               debugLog('user.getFollowers', 'start', {id, cursor, data});
+//               if (data.errors && data.errors[0].code === 32) {
+//                   return reject("Not logged in");
+//               }
+//               if (data.errors && data.errors[0]) {
+//                   return reject(data.errors[0].message);
+//               }
+//               let list = data.data.user.result.timeline.timeline.instructions.find(i => i.type === 'TimelineAddEntries').entries;
+//               const out = {
+//                   list: list.filter(e => e.entryId.startsWith('user-')).map(e => {
+//                       let user = e.content.itemContent.user_results.result;
+//                       user.legacy.id_str = user.rest_id;
+//                       if(user.is_blue_verified && !user.legacy.verified_type) {
+//                           user.legacy.verified = true;
+//                           user.legacy.verified_type = "Blue";
+//                       }
+//                       return user.legacy;
+//                   }),
+//                   cursor: list.find(e => e.entryId.startsWith('cursor-bottom-')).content.value
+//               };
+//               debugLog('user.getFollowers', 'end', out);
+//               resolve(out);
+//           }).catch(e => {
+//               reject(e);
+//           });
+//       });
+//   },
+//   getFollowingIds: (cursor = -1, count = 5000) => {
+//       return new Promise((resolve, reject) => {
+//           fetch(`https://api.twitter.com/1.1/friends/ids.json?cursor=${cursor}&stringify_ids=true&count=${count}`, {
+//               headers: {
+//                   "authorization": OLDTWITTER_CONFIG.public_token,
+//                   "x-csrf-token": OLDTWITTER_CONFIG.csrf,
+//                   "x-twitter-auth-type": "OAuth2Session",
+//                   "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+//               },
+//               credentials: "include"
+//           }).then(i => i.json()).then(data => {
+//               if (data.errors && data.errors[0]) {
+//                   return reject(data.errors[0].message);
+//               }
+//               resolve(data);
+//           }).catch(e => {
+//               reject(e);
+//           });
+//       });
+//   },
+//   getFollowersIds: (cursor = -1, count = 5000) => {
+//       return new Promise((resolve, reject) => {
+//           fetch(`https://api.twitter.com/1.1/followers/ids.json?cursor=${cursor}&stringify_ids=true&count=${count}`, {
+//               headers: {
+//                   "authorization": OLDTWITTER_CONFIG.public_token,
+//                   "x-csrf-token": OLDTWITTER_CONFIG.csrf,
+//                   "x-twitter-auth-type": "OAuth2Session",
+//                   "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+//               },
+//               credentials: "include"
+//           }).then(i => i.json()).then(data => {
+//               if (data.errors && data.errors[0]) {
+//                   return reject(data.errors[0].message);
+//               }
+//               resolve(data);
+//           }).catch(e => {
+//               reject(e);
+//           });
+//       });
+//   },
+//   }
+// };
+// API.account.verifyCredentials();
+// async function renderFollowing(clear = true, cursor) {
+//   loadingFollowing = true;
+//   let userList = document.getElementById('following-list');
+//   if(clear) {
+//       if(pageUser.id_str === user.id_str) {
+//           userList.innerHTML = `
+//               <h1 class="nice-header">${LOC.following.message} (${pageUser.friends_count.toLocaleString('en-US')})</h1>
+//               <a href="/old/unfollows/following" style="float: right;font-size: 14px;">${LOC.unfollowings.message}</a>
+//           `;
+//       } else {
+//           userList.innerHTML = `<h1 class="nice-header">${LOC.following.message} (${pageUser.friends_count.toLocaleString('en-US')})</h1>`;
+//       }
+//   }
+//   let following;
+//   try {
+//       following = await API.user.getFollowing(pageUser.id_str, cursor);
+//   } catch(e) {
+//       loadingFollowing = false;
+//       followingMoreBtn.innerText = LOC.load_more.message;
+//       console.error(e);
+//       return;
+//   }
+//   followingCursor = following.cursor;
+//   following = following.list;
+//   if(following.length === 0) {
+//       followingMoreBtn.hidden = true;
+//   } else {
+//       followingMoreBtn.hidden = false;
+//   }
+//   following.forEach(u => {
+//       let label;
+//       if(vars.showUserFollowerCountsInLists) {
+//           label = `${formatLargeNumber(u.followers_count)} ${vars.modernUI ? LOC.followers.message : LOC.followers.message.toLowerCase()}`;
+//       }
+//       appendUser(u, userList, label);
+//   });
+//   document.getElementById('loading-box').hidden = true;
+//   loadingFollowing = false;
+//   followingMoreBtn.innerText = LOC.load_more.message;
+// }
+// const OLDTWITTER_CONFIG = {
+//   oauth_key: `Bearer AAAAAAAAAAAAAAAAAAAAAG5LOQEAAAAAbEKsIYYIhrfOQqm4H8u7xcahRkU%3Dz98HKmzbeXdKqBfUDmElcqYl0cmmKY9KdS2UoNIz3Phapgsowi`,
+//   public_token: `Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA`,
+//   get csrf() {
+//       let csrf = document.cookie.match(/(?:^|;\s*)ct0=([0-9a-f]+)\s*(?:;|$)/);
+//       return csrf ? csrf[1] : "";
+//   }
+// };
+
+///
 init();
 intervals.push(setInterval(checkForInvalidExtensionContext, 1000));
 intervals.push(setInterval(updatePage, 10000));
