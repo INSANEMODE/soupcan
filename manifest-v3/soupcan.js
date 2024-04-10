@@ -1067,7 +1067,8 @@ function getLocalUrl(url) {
     "/lists",
     "/hidden",
     "/quotes",
-    "/retweets"
+    "/retweets",
+    "/subscriptions"
   ];
 
   for (const reservedSlug of reservedSlugs) {
@@ -1082,29 +1083,41 @@ function getLocalUrl(url) {
 
   return url;
 }
-
+const isEmpty = (value) => {
+  return value == null || false || value === '' || value === 'null';
+};
 let countedTerfs = 0;
 let countedUserCells = 0;
 let usersCounted = [];
 
-async function countTerf(userCell) {
+async function countTerf(userCell, kind = "default") {
   console.log("countTerf", userCell);
+  const count = document.getElementById("soupcan-count");
+  let allCounted = count.getAttribute("all-counted");
+  if(!isEmpty(allCounted) && allCounted != kind)
+  {
+    console.log("countTerf all-counted", count.getAttribute("all-counted"), kind);
+    count.removeAttribute("all-counted");
+    countedTerfs = 0;
+    countedUserCells = 0;
+    usersCounted = [];
+  }
+  
   const link = userCell.querySelector("a");
   if (link) {
     const href = link.getAttribute("href");
     const entry = await getDatabaseEntry(getIdentifier(href));
-    if (href && !usersCounted.includes(href)) {
+    if (href && !usersCounted.includes(href) && !usersCounted.includes(href.slice(1))) {
       countedUserCells++;
       usersCounted.push(href);
-      console.log("countTerf", href, entry, entry["label"]);
       if (entry && entry["label"] && entry["label"].includes("transphobe")) {
+        console.log("countTerf", href, entry, entry["label"]);
         countedTerfs++;
         usersCounted.push(href);
       }
     }
   }
 
-  const count = document.getElementById("soupcan-count");
   let percentage = 0;
   if (count) {
     if (countedUserCells > 0) {
@@ -1114,6 +1127,41 @@ async function countTerf(userCell) {
   }
 }
 
+async function countTerfsFromList(users) {
+  try {
+      const promises = users.map(async user => {
+          const screenName = user.screen_name;
+          if (screenName && !usersCounted.includes(screenName)) {
+              countedUserCells++;
+              usersCounted.push(screenName);
+              
+              // Assuming getDatabaseEntry and getIdentifier functions are defined elsewhere
+              const entry = await getDatabaseEntry(screenName);
+              //console.log("countTerf", screenName, entry ? entry["label"] : " empty"); //entry["label"]
+              
+              if (entry && entry["label"] && entry["label"]?.includes("transphobe")) {
+                  countedTerfs++;
+                  console.log("countTerf", screenName, entry["label"], " countedTerfs", countedTerfs, "countedUserCells", countedUserCells);
+              }
+          }
+      });
+
+      await Promise.all(promises);
+
+      const count = document.getElementById("soupcan-count");
+      let percentage = 0;
+      if (countedUserCells > 0) {
+          percentage = Math.max(0, Math.min(100, Math.floor(100 * countedTerfs / countedUserCells)));
+          console.log("percentage", percentage);
+      }
+      count.textContent = countedTerfs + " / " + countedUserCells + " (" + percentage + "%)";
+      count.setAttribute("counted", "true");
+
+      console.log("count", count.textContent);  
+  } catch (error) {
+      console.error("countTerf error", error);
+  }
+}
 
 function fallbackTransphobeCounter()
 {
@@ -1145,7 +1193,9 @@ function fallbackTransphobeCounter()
       minimizeButton.style.color = 'black';
       minimizeButton.style.position = 'absolute';
       minimizeButton.style.top = '5px';
-      minimizeButton.style.left = '5px';
+      // minimizeButton.style.left = '5px';
+      minimizeButton.style.left = '0%';
+      minimizeButton.style.transform = 'translate(0%)';
       minimizeButton.style.border = 'none';
       minimizeButton.style.backgroundColor = 'transparent';
       
@@ -1155,19 +1205,24 @@ function fallbackTransphobeCounter()
           if (transphobeCountPanel.style.height === '40px') {
               // Restore to original height
               transphobeCountPanel.style.top = '5px';
-              transphobeCountPanel.style.left = '20px';
-              transphobeCountPanel.style.transform = 'translate(80%, 0%)';
+              // transphobeCountPanel.style.left = '20px';
+              transphobeCountPanel.style.left = '50%';
+              transphobeCountPanel.style.transform = 'translate(0%, 0%)';
+              //transphobeCountPanel.style.transform = 'translate(80%, 0%)';
               transphobeCountPanel.style.height = '';
               h2Span.style.display = '';
+              countButton.style.display = '';
               counterText[0].style.display = '';
               counterText[1].style.display = '';
               counterText[2].style.display = '';
               counterText[3].style.display = '';
           } else {
               // Shrink the panel
+              countButton.style.display = 'none';
               transphobeCountPanel.style.top = '5px';
-              transphobeCountPanel.style.left = '20px';
-              transphobeCountPanel.style.transform = 'translate(300%, 0%)';
+              //transphobeCountPanel.style.left = '20px';
+              transphobeCountPanel.style.left = '75%';
+              transphobeCountPanel.style.transform = 'translate(0%, 0%)';
               transphobeCountPanel.style.height = '40px';
               h2Span.style.display = 'none';
               counterText[0].style.display = 'none';
@@ -1178,13 +1233,35 @@ function fallbackTransphobeCounter()
       });
       transphobeCountPanel.appendChild(minimizeButton);
 
-
+    const countButton = document.createElement('button');
+    countButton.innerText = 'count'; // Close icon ✖
+    countButton.style.color = 'black';
+    countButton.style.position = 'absolute';
+    countButton.style.top = '5px';
+    countButton.style.left = '50%';
+    countButton.style.transform = 'translate(-50%)';
+    countButton.style.border = 'none';
+    countButton.style.backgroundColor = 'transparent';
+    countButton.style.cursor = 'pointer';
+    countButton.addEventListener('click', async () => {
+      const count = document.getElementById("soupcan-count");
+      let kind = transphobeCountPanel.getAttribute("kind");
+      let kindLabel = browser.i18n.getMessage("counterName_" + kind);
+      transphobeCountPanel.querySelectorAll("div[tabindex='0'] div>div>div>span")[0].innerText = `⏳ Counting ${kindLabel}...`;
+        await countAllTerfs(kind);
+        transphobeCountPanel.querySelectorAll("div[tabindex='0'] div>div>div>span")[0].innerText = kindLabel;
+        count.setAttribute("all-counted", kind);
+        
+    });
+    transphobeCountPanel.appendChild(countButton);
   const closeButton = document.createElement('button');
   closeButton.innerText = '✖'; // Close icon ✖
   closeButton.style.color = 'black';
   closeButton.style.position = 'absolute';
   closeButton.style.top = '5px';
-  closeButton.style.right = '5px';
+  // closeButton.style.right = '5px';
+  closeButton.style.right = '0%';
+  closeButton.style.transform = 'translate(0%)';
   closeButton.style.border = 'none';
   closeButton.style.backgroundColor = 'transparent';
   closeButton.style.cursor = 'pointer';
@@ -1247,11 +1324,10 @@ for (let i = 0; i < 4; i++) {
   return transphobeCountPanel;
 }
 
-function doCountTerfs(kind) {
+async function doCountTerfs(kind) {
   if (checkForInvalidExtensionContext()) {
     return;
   }
-
   let el = document.getElementById("soupcan-terf-count");
 
   if (!kind) {
@@ -1285,6 +1361,7 @@ function doCountTerfs(kind) {
       
       // Set the id for later reference
       transphobeCountPanel.id = "soupcan-terf-count";
+      transphobeCountPanel.setAttribute("kind", kind);
       // Make the panel the right size
       transphobeCountPanel.querySelector("div").style["min-height"] = "0";
       // Change the heading
@@ -1367,7 +1444,7 @@ function doCountTerfs(kind) {
       //Array.from(userList.getElementsByClassName('user-item')).forEach(u => u.remove());
       const terfObserver = new MutationObserver(mutationsList => {
         for (const mutation of mutationsList) {
-          if (lastUpdatedUrl.includes("follow")) {
+          if (lastUpdatedUrl.includes("follow") || lastUpdatedUrl.includes("subscriptions")) {
             if (mutation.type === 'childList') {
               //console.log("counting", mutation.addedNodes);
               for (const node of mutation.addedNodes) {
@@ -1386,15 +1463,50 @@ function doCountTerfs(kind) {
       });
       terfObserver.observe(document.body, {
         childList: true,
-        subtree: true,
-        attributes: true
+        subtree: true
       });
 
     } catch {
+      console.log("Failed to count terfs");
       setTimeout(() => doCountTerfs(kind), 250);
     }
   }
 }
+//TODO: take rate limiting into account
+async function countAllTerfs(kind) {
+
+  countedTerfs = 0;
+  countedUserCells = 0;
+  usersCounted = [];
+  
+  const userName = extractUserNameFromUrl(lastUpdatedUrl);
+  console.log("User name:", userName); 
+  await apiTest(userName).then(async (userid) => {
+    console.log("apiTest done");
+
+      await getAllUsers(userid, kind, limit = 5000).catch((error) => {
+        console.error(error);
+      });          
+
+  }).catch((error) => {
+    console.error(error);
+  });
+}
+
+function extractUserNameFromUrl(url) {
+  // Split the URL by "/"
+  const parts = url.split("/");
+  
+  // The username (screen name) is typically the third part of the URL
+  if (parts.length >= 4) {
+      return parts[3];
+  } else {
+      return null; // URL structure doesn't match Twitter profile URL
+  }
+}
+
+
+
 
 lastUpdatedUrl = null;
 
@@ -1407,7 +1519,7 @@ function updatePage() {
       linkedDiv.classList.remove("soupcan-linked");
     }
 
-    if (lastUpdatedUrl.endsWith("/followers") || lastUpdatedUrl.endsWith("/followers_you_follow") || lastUpdatedUrl.endsWith("/verified_followers")) {
+    if (lastUpdatedUrl.endsWith("/followers") || lastUpdatedUrl.endsWith("/followers_you_follow") || lastUpdatedUrl.endsWith("/verified_followers") || lastUpdatedUrl.endsWith("/subscriptions")) {
       doCountTerfs("followers");
     } else if (lastUpdatedUrl.endsWith("/following")) {
       doCountTerfs("following");
@@ -1993,256 +2105,347 @@ menuObserver.observe(document.body, {
   childList: true,
   subtree: true,
 });
-if ('function' === typeof(importScripts)) {
-  importScripts("database.js");
+
+//TODO: taken from https://github.com/dimdenGD/OldTwitter scripts/api.js and modified for experimental purposes, be sure to rewrite it if needed, since the current license isn't open enough
+const TWITTERAPI_CONFIG = {
+  oauth_key: `Bearer AAAAAAAAAAAAAAAAAAAAAG5LOQEAAAAAbEKsIYYIhrfOQqm4H8u7xcahRkU%3Dz98HKmzbeXdKqBfUDmElcqYl0cmmKY9KdS2UoNIz3Phapgsowi`,
+  public_token: `Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA`,
+  get csrf() {
+      let csrf = document.cookie.match(/(?:^|;\s*)ct0=([0-9a-f]+)\s*(?:;|$)/);
+      return csrf ? csrf[1] : "";
+  }
+};
+//TODO: taken from https://github.com/dimdenGD/OldTwitter scripts/api.js for experimental purposes, be sure to rewrite it if needed, since the current license isn't open enough
+///api stuff
+const API = {
+  account: {
+      verifyCredentials: () => {
+          return new Promise((resolve, reject) => {
+              browser.storage.local.get(['credentials'], d => {
+                  if(d.credentials && Date.now() - d.credentials.date < 15000) {
+                      return resolve(d.credentials.data);
+                  }
+                  fetch(`https://api.twitter.com/1.1/account/verify_credentials.json`, {
+                      headers: {
+                          "authorization": TWITTERAPI_CONFIG.public_token,
+                          "x-csrf-token": TWITTERAPI_CONFIG.csrf,
+                          "x-twitter-auth-type": "OAuth2Session"
+                      },
+                      credentials: "include"
+                  }).then(response => response.json()).then(data => {
+                      if (data.errors && data.errors[0].code === 32) {
+                          browser.storage.local.remove(["lastUserId", "credentials", "inboxData", "tweetDetails", "savedSearches", "discoverData", "userUpdates", "peopleRecommendations", "tweetReplies", "tweetLikers", "listData", "twitterSettings", "algoTimeline"], () => {});
+                          return reject("Not logged in");
+                      }
+                      if (data.errors && data.errors[0]) {
+                          return reject(data.errors[0].message);
+                      }
+                      resolve(data);
+                      browser.storage.local.set({credentials: {
+                          date: Date.now(),
+                          data
+                      }}, () => {});
+                      browser.storage.local.get(['lastUserId'], d => {
+                          if(typeof d.lastUserId === 'string') {
+                              if(d.lastUserId !== data.id_str) {
+                                  browser.storage.local.remove(["credentials", "inboxData", "tweetDetails", "savedSearches", "discoverData", "userUpdates", "peopleRecommendations", "tweetReplies", "tweetLikers", "listData", "twitterSettings", "algoTimeline"], () => {
+                                      browser.storage.local.set({lastUserId: data.id_str}, () => {
+                                          location.reload();
+                                      });
+                                  });
+                              }
+                          } else {
+                              browser.storage.local.set({lastUserId: data.id_str}, () => {});
+                          }
+                      });
+                  }).catch(e => {
+                      reject(e);
+                  });
+              });
+          })
+      },
+
+  },
+  user: {
+    get: (val, byId = true) => {
+        return new Promise((resolve, reject) => {
+            fetch(`https://api.twitter.com/1.1/users/show.json?${byId ? `user_id=${val}` : `screen_name=${val}`}`, {
+                headers: {
+                    "authorization": TWITTERAPI_CONFIG.public_token,
+                    "x-csrf-token": TWITTERAPI_CONFIG.csrf,
+                    "x-twitter-auth-type": "OAuth2Session",
+                    "x-twitter-client-language": "en"
+                },
+                credentials: "include"
+            }).then(i => {
+                if(i.status === 401) {
+                    setTimeout(() => {
+                        location.href = `https://twitter.com/i/flow/login?newtwitter=true`;
+                    }, 50);
+                }
+                return i.json();
+            }).then(data => {
+                console.log('user.get', {val, byId, data});
+                if (data.errors && data.errors[0]) {
+                    return reject(data.errors[0].message);
+                }
+                resolve(data);
+            }).catch(e => {
+                reject(e);
+            });
+        });
+    },
+    getV2: name => {
+        return new Promise((resolve, reject) => {
+            fetch(`https://twitter.com/i/api/graphql/sLVLhk0bGj3MVFEKTdax1w/UserByScreenName?variables=%7B%22screen_name%22%3A%22${name}%22%2C%22withSafetyModeUserFields%22%3Atrue%2C%22withSuperFollowsUserFields%22%3Atrue%7D&features=${encodeURIComponent(JSON.stringify({"blue_business_profile_image_shape_enabled":true,"responsive_web_graphql_exclude_directive_enabled":true,"verified_phone_label_enabled":false,"responsive_web_graphql_skip_user_profile_image_extensions_enabled":false,"responsive_web_graphql_timeline_navigation_enabled":true}))}`, {
+                headers: {
+                    "authorization": TWITTERAPI_CONFIG.public_token,
+                    "x-csrf-token": TWITTERAPI_CONFIG.csrf,
+                    "x-twitter-auth-type": "OAuth2Session",
+                    "content-type": "application/json",
+                    "x-twitter-client-language": "en"
+                },
+                credentials: "include"
+            }).then(i => i.json()).then(data => {
+                console.log('user.getV2', 'start', {name, data});
+                if (data.errors && data.errors[0]) {
+                    return reject(data.errors[0].message);
+                }
+                if(data.data.user.result.unavailable_message) {
+                    return reject(data.data.user.result.unavailable_message.text);
+                }
+
+                let result = data.data.user.result;
+                result.legacy.id_str = result.rest_id;
+                if(result.legacy_extended_profile.birthdate) {
+                    result.legacy.birthdate = result.legacy_extended_profile.birthdate;
+                }
+                if(result.professional) {
+                    result.legacy.professional = result.professional;
+                }
+                if(result.affiliates_highlighted_label && result.affiliates_highlighted_label.label) {
+                    result.legacy.affiliates_highlighted_label = result.affiliates_highlighted_label.label;
+                }
+                if(result.is_blue_verified && !result.legacy.verified_type) {
+                    result.legacy.verified_type = "Blue";
+                }
+    
+                console.log('user.getV2', 'end', result.legacy);
+                resolve(result.legacy);
+            }).catch(e => {
+                reject(e);
+            });
+        });
+    },
+
+    getFollowing: (id, cursor) => {
+      return new Promise((resolve, reject) => {
+          let obj = {
+              "userId": id,
+              "count": 100,
+              "includePromotedContent": false
+          };
+          if(cursor) obj.cursor = cursor;
+          fetch(`https://twitter.com/i/api/graphql/t-BPOrMIduGUJWO_LxcvNQ/Following?variables=${encodeURIComponent(JSON.stringify(obj))}&features=${encodeURIComponent(JSON.stringify({"rweb_lists_timeline_redesign_enabled":false,"responsive_web_graphql_exclude_directive_enabled":true,"verified_phone_label_enabled":false,"creator_subscriptions_tweet_preview_api_enabled":true,"responsive_web_graphql_timeline_navigation_enabled":true,"responsive_web_graphql_skip_user_profile_image_extensions_enabled":false,"tweetypie_unmention_optimization_enabled":true,"responsive_web_edit_tweet_api_enabled":true,"graphql_is_translatable_rweb_tweet_is_translatable_enabled":true,"view_counts_everywhere_api_enabled":true,"longform_notetweets_consumption_enabled":true,"responsive_web_twitter_article_tweet_consumption_enabled":false,"tweet_awards_web_tipping_enabled":false,"freedom_of_speech_not_reach_fetch_enabled":true,"standardized_nudges_misinfo":true,"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled":true,"longform_notetweets_rich_text_read_enabled":true,"longform_notetweets_inline_media_enabled":true,"responsive_web_media_download_video_enabled":false,"responsive_web_enhance_cards_enabled":false}))}`, {
+              headers: {
+                  "authorization": TWITTERAPI_CONFIG.public_token,
+                  "x-csrf-token": TWITTERAPI_CONFIG.csrf,
+                  "x-twitter-auth-type": "OAuth2Session",
+                  "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+              },
+              credentials: "include"
+          }).then(i => i.json()).then(data => {
+              console.log('user.getFollowing', 'start', {id, cursor, data});
+              if (data.errors && data.errors[0].code === 32) {
+                  return reject("Not logged in");
+              }
+              if (data.errors && data.errors[0]) {
+                  return reject(data.errors[0].message);
+              }
+              let list = data.data.user.result.timeline.timeline.instructions.find(i => i.type === 'TimelineAddEntries').entries;
+              const out = {
+                  list: list.filter(e => e.entryId.startsWith('user-')).map(e => {
+                      let user = e.content.itemContent.user_results.result;
+                      if(!user) return;
+                      user.legacy.id_str = user.rest_id;
+                      if(user.is_blue_verified && !user.legacy.verified_type) {
+                          user.legacy.verified = true;
+                          user.legacy.verified_type = "Blue";
+                      }
+                      return user.legacy;
+                  }).filter(e => e),
+                  cursor: list.find(e => e.entryId.startsWith('cursor-bottom-')).content.value
+              }
+              console.log('user.getFollowing', 'end', out);
+              resolve(out);
+          }).catch(e => {
+              reject(e);
+          });
+      });
+  },
+  getFollowers: (id, cursor, count = 100) => {
+      return new Promise((resolve, reject) => {
+          let obj = {
+              "userId": id,
+              "count": count,
+              "includePromotedContent": false,
+              "withSuperFollowsUserFields": true,
+              "withDownvotePerspective": false,
+              "withReactionsMetadata": false,
+              "withReactionsPerspective": false,
+              "withSuperFollowsTweetFields": true,
+              "withClientEventToken": false,
+              "withBirdwatchNotes": false,
+              "withVoice": true,
+              "withV2Timeline": true
+          };
+          if(cursor) obj.cursor = cursor;
+          fetch(`https://twitter.com/i/api/graphql/fJSopkDA3UP9priyce4RgQ/Followers?variables=${encodeURIComponent(JSON.stringify(obj))}&features=${encodeURIComponent(JSON.stringify({
+              "dont_mention_me_view_api_enabled": true,
+              "interactive_text_enabled": true,
+              "responsive_web_uc_gql_enabled": false,
+              "vibe_tweet_context_enabled": false,
+              "responsive_web_edit_tweet_api_enabled": false,
+              "standardized_nudges_misinfo": false,
+              "responsive_web_enhance_cards_enabled": false
+          }))}`, {
+              headers: {
+                  "authorization": TWITTERAPI_CONFIG.public_token,
+                  "x-csrf-token": TWITTERAPI_CONFIG.csrf,
+                  "x-twitter-auth-type": "OAuth2Session",
+                  "content-type": "application/json"
+              },
+              credentials: "include"
+          }).then(i => i.json()).then(data => {
+              console.log('user.getFollowers', 'start', {id, cursor, data});
+              if (data.errors && data.errors[0].code === 32) {
+                  return reject("Not logged in");
+              }
+              if (data.errors && data.errors[0]) {
+                  return reject(data.errors[0].message);
+              }
+              let list = data.data.user.result.timeline.timeline.instructions.find(i => i.type === 'TimelineAddEntries').entries;
+              const out = {
+                  list: list.filter(e => e.entryId.startsWith('user-')).map(e => {
+                      let user = e.content.itemContent.user_results.result;
+                      user.legacy.id_str = user.rest_id;
+                      if(user.is_blue_verified && !user.legacy.verified_type) {
+                          user.legacy.verified = true;
+                          user.legacy.verified_type = "Blue";
+                      }
+                      return user.legacy;
+                  }),
+                  cursor: list.find(e => e.entryId.startsWith('cursor-bottom-')).content.value
+              };
+              console.log('user.getFollowers', 'end', out);
+              resolve(out);
+          }).catch(e => {
+              reject(e);
+          });
+      });
+  },
+  getFollowingIds: (cursor = -1, count = 5000) => {
+      return new Promise((resolve, reject) => {
+          fetch(`https://api.twitter.com/1.1/friends/ids.json?cursor=${cursor}&stringify_ids=true&count=${count}`, {
+              headers: {
+                  "authorization": TWITTERAPI_CONFIG.public_token,
+                  "x-csrf-token": TWITTERAPI_CONFIG.csrf,
+                  "x-twitter-auth-type": "OAuth2Session",
+                  "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+              },
+              credentials: "include"
+          }).then(i => i.json()).then(data => {
+              if (data.errors && data.errors[0]) {
+                  return reject(data.errors[0].message);
+              }
+              resolve(data);
+          }).catch(e => {
+              reject(e);
+          });
+      });
+  },
+  getFollowersIds: (cursor = -1, count = 5000) => {
+      return new Promise((resolve, reject) => {
+          fetch(`https://api.twitter.com/1.1/followers/ids.json?cursor=${cursor}&stringify_ids=true&count=${count}`, {
+              headers: {
+                  "authorization": TWITTERAPI_CONFIG.public_token,
+                  "x-csrf-token": TWITTERAPI_CONFIG.csrf,
+                  "x-twitter-auth-type": "OAuth2Session",
+                  "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
+              },
+              credentials: "include"
+          }).then(i => i.json()).then(data => {
+              if (data.errors && data.errors[0]) {
+                  return reject(data.errors[0].message);
+              }
+              resolve(data);
+          }).catch(e => {
+              reject(e);
+          });
+      });
+  },
+  },
+  
+};
+let pageUserDatatest, oldUsertest, utest;
+async function apiTest(user_handle) {
+  if(!user_handle)
+  {
+    console.log("apiTest: no user_handle found");
+    return;
+  }
+  console.log("apiTest", user_handle);
+[pageUserDatatest, oldUsertest, utest] = await Promise.allSettled([
+  API.user.getV2(user_handle),
+  API.user.get(user_handle, false),
+  API.account.verifyCredentials()
+]);
+return pageUserDatatest.value.id_str;
 }
 
+async function getAllUsers(userId, kind, limit = 100) {
+  let users = [];
+  let cursor = null;
 
-///api shit
-// const API = {
-//   account: {
-//       verifyCredentials: () => {
-//           return new Promise((resolve, reject) => {
-//               chrome.storage.local.get(['credentials'], d => {
-//                   if(d.credentials && Date.now() - d.credentials.date < 15000) {
-//                       return resolve(d.credentials.data);
-//                   }
-//                   fetch(`https://api.twitter.com/1.1/account/verify_credentials.json`, {
-//                       headers: {
-//                           "authorization": OLDTWITTER_CONFIG.public_token,
-//                           "x-csrf-token": OLDTWITTER_CONFIG.csrf,
-//                           "x-twitter-auth-type": "OAuth2Session"
-//                       },
-//                       credentials: "include"
-//                   }).then(response => response.json()).then(data => {
-//                       if (data.errors && data.errors[0].code === 32) {
-//                           chrome.storage.local.remove(["lastUserId", "credentials", "inboxData", "tweetDetails", "savedSearches", "discoverData", "userUpdates", "peopleRecommendations", "tweetReplies", "tweetLikers", "listData", "twitterSettings", "algoTimeline"], () => {});
-//                           return reject("Not logged in");
-//                       }
-//                       if (data.errors && data.errors[0]) {
-//                           return reject(data.errors[0].message);
-//                       }
-//                       resolve(data);
-//                       chrome.storage.local.set({credentials: {
-//                           date: Date.now(),
-//                           data
-//                       }}, () => {});
-//                       chrome.storage.local.get(['lastUserId'], d => {
-//                           if(typeof d.lastUserId === 'string') {
-//                               if(d.lastUserId !== data.id_str) {
-//                                   chrome.storage.local.remove(["credentials", "inboxData", "tweetDetails", "savedSearches", "discoverData", "userUpdates", "peopleRecommendations", "tweetReplies", "tweetLikers", "listData", "twitterSettings", "algoTimeline"], () => {
-//                                       chrome.storage.local.set({lastUserId: data.id_str}, () => {
-//                                           location.reload();
-//                                       });
-//                                   });
-//                               }
-//                           } else {
-//                               chrome.storage.local.set({lastUserId: data.id_str}, () => {});
-//                           }
-//                       });
-//                   }).catch(e => {
-//                       reject(e);
-//                   });
-//               });
-//           })
-//       },
-//     getFollowing: (id, cursor) => {
-//       return new Promise((resolve, reject) => {
-//           let obj = {
-//               "userId": id,
-//               "count": 100,
-//               "includePromotedContent": false
-//           };
-//           if(cursor) obj.cursor = cursor;
-//           fetch(`https://twitter.com/i/api/graphql/t-BPOrMIduGUJWO_LxcvNQ/Following?variables=${encodeURIComponent(JSON.stringify(obj))}&features=${encodeURIComponent(JSON.stringify({"rweb_lists_timeline_redesign_enabled":false,"responsive_web_graphql_exclude_directive_enabled":true,"verified_phone_label_enabled":false,"creator_subscriptions_tweet_preview_api_enabled":true,"responsive_web_graphql_timeline_navigation_enabled":true,"responsive_web_graphql_skip_user_profile_image_extensions_enabled":false,"tweetypie_unmention_optimization_enabled":true,"responsive_web_edit_tweet_api_enabled":true,"graphql_is_translatable_rweb_tweet_is_translatable_enabled":true,"view_counts_everywhere_api_enabled":true,"longform_notetweets_consumption_enabled":true,"responsive_web_twitter_article_tweet_consumption_enabled":false,"tweet_awards_web_tipping_enabled":false,"freedom_of_speech_not_reach_fetch_enabled":true,"standardized_nudges_misinfo":true,"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled":true,"longform_notetweets_rich_text_read_enabled":true,"longform_notetweets_inline_media_enabled":true,"responsive_web_media_download_video_enabled":false,"responsive_web_enhance_cards_enabled":false}))}`, {
-//               headers: {
-//                   "authorization": OLDTWITTER_CONFIG.public_token,
-//                   "x-csrf-token": OLDTWITTER_CONFIG.csrf,
-//                   "x-twitter-auth-type": "OAuth2Session",
-//                   "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
-//               },
-//               credentials: "include"
-//           }).then(i => i.json()).then(data => {
-//               debugLog('user.getFollowing', 'start', {id, cursor, data});
-//               if (data.errors && data.errors[0].code === 32) {
-//                   return reject("Not logged in");
-//               }
-//               if (data.errors && data.errors[0]) {
-//                   return reject(data.errors[0].message);
-//               }
-//               let list = data.data.user.result.timeline.timeline.instructions.find(i => i.type === 'TimelineAddEntries').entries;
-//               const out = {
-//                   list: list.filter(e => e.entryId.startsWith('user-')).map(e => {
-//                       let user = e.content.itemContent.user_results.result;
-//                       if(!user) return;
-//                       user.legacy.id_str = user.rest_id;
-//                       if(user.is_blue_verified && !user.legacy.verified_type) {
-//                           user.legacy.verified = true;
-//                           user.legacy.verified_type = "Blue";
-//                       }
-//                       return user.legacy;
-//                   }).filter(e => e),
-//                   cursor: list.find(e => e.entryId.startsWith('cursor-bottom-')).content.value
-//               }
-//               debugLog('user.getFollowing', 'end', out);
-//               resolve(out);
-//           }).catch(e => {
-//               reject(e);
-//           });
-//       });
-//   },
-//   getFollowers: (id, cursor, count = 100) => {
-//       return new Promise((resolve, reject) => {
-//           let obj = {
-//               "userId": id,
-//               "count": count,
-//               "includePromotedContent": false,
-//               "withSuperFollowsUserFields": true,
-//               "withDownvotePerspective": false,
-//               "withReactionsMetadata": false,
-//               "withReactionsPerspective": false,
-//               "withSuperFollowsTweetFields": true,
-//               "withClientEventToken": false,
-//               "withBirdwatchNotes": false,
-//               "withVoice": true,
-//               "withV2Timeline": true
-//           };
-//           if(cursor) obj.cursor = cursor;
-//           fetch(`https://twitter.com/i/api/graphql/fJSopkDA3UP9priyce4RgQ/Followers?variables=${encodeURIComponent(JSON.stringify(obj))}&features=${encodeURIComponent(JSON.stringify({
-//               "dont_mention_me_view_api_enabled": true,
-//               "interactive_text_enabled": true,
-//               "responsive_web_uc_gql_enabled": false,
-//               "vibe_tweet_context_enabled": false,
-//               "responsive_web_edit_tweet_api_enabled": false,
-//               "standardized_nudges_misinfo": false,
-//               "responsive_web_enhance_cards_enabled": false
-//           }))}`, {
-//               headers: {
-//                   "authorization": OLDTWITTER_CONFIG.public_token,
-//                   "x-csrf-token": OLDTWITTER_CONFIG.csrf,
-//                   "x-twitter-auth-type": "OAuth2Session",
-//                   "content-type": "application/json"
-//               },
-//               credentials: "include"
-//           }).then(i => i.json()).then(data => {
-//               debugLog('user.getFollowers', 'start', {id, cursor, data});
-//               if (data.errors && data.errors[0].code === 32) {
-//                   return reject("Not logged in");
-//               }
-//               if (data.errors && data.errors[0]) {
-//                   return reject(data.errors[0].message);
-//               }
-//               let list = data.data.user.result.timeline.timeline.instructions.find(i => i.type === 'TimelineAddEntries').entries;
-//               const out = {
-//                   list: list.filter(e => e.entryId.startsWith('user-')).map(e => {
-//                       let user = e.content.itemContent.user_results.result;
-//                       user.legacy.id_str = user.rest_id;
-//                       if(user.is_blue_verified && !user.legacy.verified_type) {
-//                           user.legacy.verified = true;
-//                           user.legacy.verified_type = "Blue";
-//                       }
-//                       return user.legacy;
-//                   }),
-//                   cursor: list.find(e => e.entryId.startsWith('cursor-bottom-')).content.value
-//               };
-//               debugLog('user.getFollowers', 'end', out);
-//               resolve(out);
-//           }).catch(e => {
-//               reject(e);
-//           });
-//       });
-//   },
-//   getFollowingIds: (cursor = -1, count = 5000) => {
-//       return new Promise((resolve, reject) => {
-//           fetch(`https://api.twitter.com/1.1/friends/ids.json?cursor=${cursor}&stringify_ids=true&count=${count}`, {
-//               headers: {
-//                   "authorization": OLDTWITTER_CONFIG.public_token,
-//                   "x-csrf-token": OLDTWITTER_CONFIG.csrf,
-//                   "x-twitter-auth-type": "OAuth2Session",
-//                   "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
-//               },
-//               credentials: "include"
-//           }).then(i => i.json()).then(data => {
-//               if (data.errors && data.errors[0]) {
-//                   return reject(data.errors[0].message);
-//               }
-//               resolve(data);
-//           }).catch(e => {
-//               reject(e);
-//           });
-//       });
-//   },
-//   getFollowersIds: (cursor = -1, count = 5000) => {
-//       return new Promise((resolve, reject) => {
-//           fetch(`https://api.twitter.com/1.1/followers/ids.json?cursor=${cursor}&stringify_ids=true&count=${count}`, {
-//               headers: {
-//                   "authorization": OLDTWITTER_CONFIG.public_token,
-//                   "x-csrf-token": OLDTWITTER_CONFIG.csrf,
-//                   "x-twitter-auth-type": "OAuth2Session",
-//                   "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
-//               },
-//               credentials: "include"
-//           }).then(i => i.json()).then(data => {
-//               if (data.errors && data.errors[0]) {
-//                   return reject(data.errors[0].message);
-//               }
-//               resolve(data);
-//           }).catch(e => {
-//               reject(e);
-//           });
-//       });
-//   },
-//   }
-// };
-// API.account.verifyCredentials();
-// async function renderFollowing(clear = true, cursor) {
-//   loadingFollowing = true;
-//   let userList = document.getElementById('following-list');
-//   if(clear) {
-//       if(pageUser.id_str === user.id_str) {
-//           userList.innerHTML = `
-//               <h1 class="nice-header">${LOC.following.message} (${pageUser.friends_count.toLocaleString('en-US')})</h1>
-//               <a href="/old/unfollows/following" style="float: right;font-size: 14px;">${LOC.unfollowings.message}</a>
-//           `;
-//       } else {
-//           userList.innerHTML = `<h1 class="nice-header">${LOC.following.message} (${pageUser.friends_count.toLocaleString('en-US')})</h1>`;
-//       }
-//   }
-//   let following;
-//   try {
-//       following = await API.user.getFollowing(pageUser.id_str, cursor);
-//   } catch(e) {
-//       loadingFollowing = false;
-//       followingMoreBtn.innerText = LOC.load_more.message;
-//       console.error(e);
-//       return;
-//   }
-//   followingCursor = following.cursor;
-//   following = following.list;
-//   if(following.length === 0) {
-//       followingMoreBtn.hidden = true;
-//   } else {
-//       followingMoreBtn.hidden = false;
-//   }
-//   following.forEach(u => {
-//       let label;
-//       if(vars.showUserFollowerCountsInLists) {
-//           label = `${formatLargeNumber(u.followers_count)} ${vars.modernUI ? LOC.followers.message : LOC.followers.message.toLowerCase()}`;
-//       }
-//       appendUser(u, userList, label);
-//   });
-//   document.getElementById('loading-box').hidden = true;
-//   loadingFollowing = false;
-//   followingMoreBtn.innerText = LOC.load_more.message;
-// }
-// const OLDTWITTER_CONFIG = {
-//   oauth_key: `Bearer AAAAAAAAAAAAAAAAAAAAAG5LOQEAAAAAbEKsIYYIhrfOQqm4H8u7xcahRkU%3Dz98HKmzbeXdKqBfUDmElcqYl0cmmKY9KdS2UoNIz3Phapgsowi`,
-//   public_token: `Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA`,
-//   get csrf() {
-//       let csrf = document.cookie.match(/(?:^|;\s*)ct0=([0-9a-f]+)\s*(?:;|$)/);
-//       return csrf ? csrf[1] : "";
-//   }
-// };
+  try {
+      // Fetch initial batch of users
+      let response;
+      if (kind === 'following') {
+          response = await API.user.getFollowing(userId, cursor);
+      } else if (kind === 'followers') {
+          response = await API.user.getFollowers(userId, cursor, limit);
+      } else {
+          throw new Error("Invalid kind parameter. Use 'following' or 'followers'.");
+      }
+
+      await countTerfsFromList(response.list).catch(e => console.log(e));
+      users.push(...response.list);
+      cursor = response.cursor;
+
+      // Keep fetching until we reach the limit or there are no more users
+      while (users.length < limit && cursor && response.list.length > 0) {
+          if (kind === 'following') {
+              response = await API.user.getFollowing(userId, cursor);
+          } else if (kind === 'followers') {
+              response = await API.user.getFollowers(userId, cursor, limit);
+          }
+          await countTerfsFromList(response.list).catch(e => console.log(e));
+          users.push(...response.list);
+          cursor = response.cursor;
+      }
+
+      // If more entries were fetched than the limit, slice the array
+      if (users.length > limit) {
+          users = users.slice(0, limit);
+      }
+
+      console.log(`apiTest: ${kind.charAt(0).toUpperCase() + kind.slice(1)}:`, users);
+      return users;
+  } catch (error) {
+      console.error(`Error fetching ${kind}:`, error);
+      return [];
+  }
+}
 
 ///
 init();
