@@ -27,6 +27,7 @@ function hash(string) {
   });
 }
 async function getDatabaseEntry(identifier) {
+  //console.log("getDatabaseEntry", identifier);
   const hashedIdentifier = await hash(identifier.toLowerCase() + ":" + database["salt"]);
 
   const databaseEntry = database["entries"][hashedIdentifier];

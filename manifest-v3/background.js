@@ -339,12 +339,14 @@ browser.runtime.onMessageExternal.addListener((m, s, r) => { (async (message, se
         let dbEntry = await getDatabaseEntry(message.screen_name);
 
         if (dbEntry) {
+          //console.log("external message response: ",dbEntry);
           sendResponse({
             status: dbEntry["label"].includes("transphobe") ? "transphobic" : "normal",
             reason: dbEntry.reason,
             reported_at: dbEntry.time
           });
         } else {
+          //console.log("external message response: not found");
           sendResponse({
             screen_name: message.screen_name,
             status: "not_found",
