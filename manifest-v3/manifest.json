@@ -48,7 +48,7 @@
     "web_accessible_resources": [
         {
           "resources": ["images/*.png"],
-          "matches": ["*://*.twitter.com/*"]
+          "matches": ["*://*.twitter.com/*", "*://*.x.com/*"]
         }
     ],
     "browser_specific_settings": {

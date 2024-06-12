@@ -2346,7 +2346,7 @@ function handleTweetMenus(mutationList, menuObserver) {
         if (
           node.nodeType === Node.ELEMENT_NODE &&
           node.querySelector(
-            'article[data-testid="tweet"] div[data-testid="caret"]'
+            'article[data-testid="tweet"] div button[data-testid="caret"]'
           )
         ) {
           addListenerToTweetMenuButton(node);
