@@ -5,6 +5,8 @@ const blueBlockerExtensionIds = [
   "{119be3f3-597c-4f6a-9caf-627ee431d374}", // Firefox
   "jphoieibjlbddgacnjpfjphmpambipfl" // local testing
 ];
+
+
 let platformInfo;
 async function getPlatform(){
   platformInfo = await browser.runtime.getPlatformInfo();
@@ -55,7 +57,7 @@ function isMobile() {
 async function start() {
   await getPlatform();
   initDatabase();
-
+  //sendIntegrationRequest();
   browser.storage.local.get(["database", "state"], v => {
     if (!v.database) {
       if (!v.state) {
@@ -363,7 +365,42 @@ browser.runtime.onMessageExternal.addListener((m, s, r) => { (async (message, se
   }
 })(m, s, r); return true });
 
+const registerMessage = {
+	action: 'register',
+	name: 'Soupcan',
+};
+
+const SuccessStatus = 'SUCCESS';
+const ErrorStatus = 'ERROR';
+const logstr = '[Soupcan]';
+
+browser.runtime.onInstalled.addListener(details => {
+	if (details.reason === 'install' || details.reason === 'update') {
+		console.log(logstr, 'extension installed');
+		sendIntegrationRequest();
+	}
+});
+function sendIntegrationRequest() {
+	console.log(logstr, 'sending message to blue blocker');
+	// This is all you need to send
+	browser.runtime
+		.sendMessage("{119be3f3-597c-4f6a-9caf-627ee431d374}", registerMessage)
+		.then(response => {
+			if (response.status !== SuccessStatus) {
+				console.error(
+					logstr,
+					'BlueBlocker ran into an error',
+					(response).message,
+				);
+			}
+		})
+		.catch(e => {
+			console.error(logstr, 'API error:', e);
+		});
+}
 if ('function' === typeof(importScripts)) {
   importScripts("database.js");
 }
+
+
 start();

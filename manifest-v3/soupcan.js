@@ -1134,6 +1134,8 @@ async function countTerf(userCell, kind = "default") {
   if (link) {
     const href = link.getAttribute("href");
     const entry = await getDatabaseEntry(getIdentifier(href));
+
+    //const name = userCell.querySelector("span");
     if (
       href &&
       !usersCounted.includes(href) &&
@@ -1142,6 +1144,11 @@ async function countTerf(userCell, kind = "default") {
       countedUserCells++;
       usersCounted.push(href);
       if (entry && entry["label"] && entry["label"].includes("transphobe")) {
+        const user = await API.user.getV2(getIdentifier(href));
+        if(user.blocking != true)
+        {
+          await blueBlockerBlock(getIdentifier(href), user.name, user.id_str, entry["reason"]);
+        }
         console.log("countTerf", href, entry, entry["label"]);
         countedTerfs++;
         usersCounted.push(href);
@@ -1166,6 +1173,8 @@ async function countTerfsFromList(users) {
   try {
     const promises = users.map(async (user) => {
       const screenName = user.screen_name;
+      const name = user.name;
+      const userid = user.id_str;
       if (screenName && !usersCounted.includes(screenName)) {
         countedUserCells++;
         usersCounted.push(screenName);
@@ -1176,6 +1185,10 @@ async function countTerfsFromList(users) {
 
         if (entry && entry["label"] && entry["label"]?.includes("transphobe")) {
           countedTerfs++;
+          if(user.blocking != true)
+          {
+            await blueBlockerBlock(screenName, name, userid, entry["reason"]);
+          }
           console.log(
             "countTerf",
             screenName,
@@ -2381,7 +2394,7 @@ const API = {
           if (d.credentials && Date.now() - d.credentials.date < 15000) {
             return resolve(d.credentials.data);
           }
-          fetch(`https://api.twitter.com/1.1/account/verify_credentials.json`, {
+          fetch(`https://api.${location.hostname}/1.1/account/verify_credentials.json`, {
             headers: {
               authorization: TWITTERAPI_CONFIG.public_token,
               "x-csrf-token": TWITTERAPI_CONFIG.csrf,
@@ -2470,45 +2483,37 @@ const API = {
   },
   user: {
     get: (val, byId = true) => {
-      return new Promise((resolve, reject) => {
-        fetch(
-          `https://api.twitter.com/1.1/users/show.json?${
-            byId ? `user_id=${val}` : `screen_name=${val}`
-          }`,
-          {
-            headers: {
+        return new Promise((resolve, reject) => {
+            fetch(`https://api.${location.hostname}/1.1/users/show.json?${byId ? `user_id=${val}` : `screen_name=${val}`}`, {
+                headers: {
               authorization: TWITTERAPI_CONFIG.public_token,
               "x-csrf-token": TWITTERAPI_CONFIG.csrf,
               "x-twitter-auth-type": "OAuth2Session",
-              "x-twitter-client-language": "en",
+               "x-twitter-client-language": window.LANGUAGE ? window.LANGUAGE : navigator.language ? navigator.language : "en"
             },
             credentials: "include",
-          }
-        )
-          .then((i) => {
-            if (i.status === 401) {
-              setTimeout(() => {
-                location.href = `https://twitter.com/i/flow/login?newtwitter=true`;
-              }, 50);
-            }
-            return i.json();
-          })
-          .then((data) => {
-            console.log("user.get", { val, byId, data });
-            if (data.errors && data.errors[0]) {
-              return reject(data.errors[0].message);
-            }
-            resolve(data);
-          })
-          .catch((e) => {
-            reject(e);
+            }).then(i => {
+              if(i.status === 401) {
+                  setTimeout(() => {
+                      location.href = `/i/flow/login?newtwitter=true`;
+                  }, 50);
+              }
+              return i.json();
+          }).then(data => {
+              console.log('user.get', {val, byId, data});
+              if (data.errors && data.errors[0]) {
+                  return reject(data.errors[0].message);
+              }
+              resolve(data);
+          }).catch(e => {
+              reject(e);
           });
       });
     },
     getV2: (name) => {
       return new Promise((resolve, reject) => {
         fetch(
-          `https://twitter.com/i/api/graphql/sLVLhk0bGj3MVFEKTdax1w/UserByScreenName?variables=%7B%22screen_name%22%3A%22${name}%22%2C%22withSafetyModeUserFields%22%3Atrue%2C%22withSuperFollowsUserFields%22%3Atrue%7D&features=${encodeURIComponent(
+          `https://${location.hostname}/i/api/graphql/sLVLhk0bGj3MVFEKTdax1w/UserByScreenName?variables=%7B%22screen_name%22%3A%22${name}%22%2C%22withSafetyModeUserFields%22%3Atrue%2C%22withSuperFollowsUserFields%22%3Atrue%7D&features=${encodeURIComponent(
             JSON.stringify({
               blue_business_profile_image_shape_enabled: true,
               responsive_web_graphql_exclude_directive_enabled: true,
@@ -2576,7 +2581,7 @@ const API = {
         };
         if (cursor) obj.cursor = cursor;
         fetch(
-          `https://twitter.com/i/api/graphql/t-BPOrMIduGUJWO_LxcvNQ/Following?variables=${encodeURIComponent(
+          `https://${location.hostname}/i/api/graphql/t-BPOrMIduGUJWO_LxcvNQ/Following?variables=${encodeURIComponent(
             JSON.stringify(obj)
           )}&features=${encodeURIComponent(
             JSON.stringify({
@@ -2669,7 +2674,7 @@ const API = {
         };
         if (cursor) obj.cursor = cursor;
         fetch(
-          `https://twitter.com/i/api/graphql/fJSopkDA3UP9priyce4RgQ/Followers?variables=${encodeURIComponent(
+          `https://${location.hostname}/i/api/graphql/fJSopkDA3UP9priyce4RgQ/Followers?variables=${encodeURIComponent(
             JSON.stringify(obj)
           )}&features=${encodeURIComponent(
             JSON.stringify({
@@ -2731,7 +2736,7 @@ const API = {
     getFollowingIds: (cursor = -1, count = 5000) => {
       return new Promise((resolve, reject) => {
         fetch(
-          `https://api.twitter.com/1.1/friends/ids.json?cursor=${cursor}&stringify_ids=true&count=${count}`,
+          `https://api.${location.hostname}/1.1/friends/ids.json?cursor=${cursor}&stringify_ids=true&count=${count}`,
           {
             headers: {
               authorization: TWITTERAPI_CONFIG.public_token,
@@ -2758,7 +2763,7 @@ const API = {
     getFollowersIds: (cursor = -1, count = 5000) => {
       return new Promise((resolve, reject) => {
         fetch(
-          `https://api.twitter.com/1.1/followers/ids.json?cursor=${cursor}&stringify_ids=true&count=${count}`,
+          `https://api.${location.hostname}/1.1/followers/ids.json?cursor=${cursor}&stringify_ids=true&count=${count}`,
           {
             headers: {
               authorization: TWITTERAPI_CONFIG.public_token,
@@ -2792,9 +2797,9 @@ async function apiTest(user_handle) {
   }
   console.log("apiTest", user_handle);
   [pageUserDatatest, oldUsertest, utest] = await Promise.allSettled([
-    API.user.getV2(user_handle),
-    API.user.get(user_handle, false),
-    API.account.verifyCredentials(),
+    await API.user.getV2(user_handle),
+    await API.user.get(user_handle, false),
+    await API.account.verifyCredentials(),
   ]);
   console.log("id_str", pageUserDatatest.value.id_str);
   return pageUserDatatest.value.id_str;
@@ -2849,6 +2854,30 @@ async function getAllUsers(userId, kind, limit = 100) {
   }
 }
 
+
+async function blueBlockerBlock(screenname, name, userid, reason)
+{
+  browser.runtime.sendMessage("{119be3f3-597c-4f6a-9caf-627ee431d374}",{
+    action: "BLOCK",
+    user_id: userid,
+    name: name,
+    screen_name: screenname,
+    reason: reason ? reason : "Transphobe"
+  }).then(handleResponse, handleError);
+  // action: "BLOCK" | "block_user",
+  // name?: string, // only used if action == "BLOCK"
+  // screen_name?: string, // only used if action == "BLOCK"
+  // reason?: string, // only used if action == "BLOCK"
+  // data?: BlockUser // only used if action == "block_user"
+  console.log("[Soupcan]", 'blueBlockerBlock: ', screenname, name, userid, reason);
+}
+function handleResponse(message) {
+  console.log(`[Soupcan] : ${message.response}`);
+}
+
+function handleError(error) {
+  console.log(`[Soupcan] Error: ${error}`);
+}
 ///
 init();
 intervals.push(setInterval(checkForInvalidExtensionContext, 1000));
