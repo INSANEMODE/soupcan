@@ -359,3 +359,23 @@ table.reasons-table td {
 .nowrap {
     white-space: nowrap;
 }
+#awn-popup-wrapper
+{
+  overflow: auto;
+  align-items: flex-start;
+}
+
+@media (max-width: 600px) {
+    #awn-popup-wrapper .awn-popup-body {
+        font-size: 12px;
+        padding: 24px 5px;
+    }
+}
+@media (max-width: 600px) {
+    #awn-popup-wrapper
+    {
+        font-size: 12px;
+        justify-content: flex-start;
+        align-items: flex-start;
+    }
+}

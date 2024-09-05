@@ -173,7 +173,7 @@ browser.runtime.onMessage.addListener(function (request, sender, sendResponse) {
   if (request.action == "platforminfo") {
     platformInfo = request.platform;
     console.log("mobile listener got platformInfo", platformInfo);
-    if (["ios", "android"].includes(platformInfo.os)) {
+    if (["ios", "android", "win"].includes(platformInfo.os)) {
       const menuObserver = new MutationObserver(handleMenus);
       menuObserver.observe(document.body, {
         childList: true,
