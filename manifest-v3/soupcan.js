@@ -435,6 +435,8 @@ function createObserver() {
             applyHideAds();
             if (isProfilePage()) {
               applyLinkToUsernameOnProfilePage();
+              //console.log("is profile page");
+              applySearchBoxTweaksOnProfilePage();
             }
           }
           if (node instanceof HTMLImageElement) {
@@ -647,6 +649,41 @@ function applyLinkToUsernameOnProfilePage() {
       appliedLinkedToUsernameOnProfilePage = true;
     }
   }
+}
+//!TODO: fix text not applying on first focus, occasionally.
+function applySearchBoxTweaksOnProfilePage()
+{
+  const mobileSearchButton = document.querySelector("[data-testid='AppTabBar_Explore_Link']");
+    if(mobileSearchButton)
+    {
+      const usernameDiv = document.body.querySelector("div[data-testid='UserName']");
+      const username = getUsernameFromDiv(usernameDiv);
+      //search button still goes to explore page, even with href changed, for some reason, so prevent default, and set location directly
+      mobileSearchButton.setAttribute("href", `/search?q=from:@${username}+`);
+      mobileSearchButton.addEventListener("click", (e) => {
+        if(isProfilePage())
+        {
+          e.preventDefault();
+          window.location.href = mobileSearchButton.href;
+        }
+        return false;
+      });
+    }
+    else
+    {
+      document.querySelector("[data-testid='SearchBox_Search_Input']").onfocus = function(){
+        setTimeout(() => {  
+          const usernameDiv = document.body.querySelector("div[data-testid='UserName']");
+          const username = getUsernameFromDiv(usernameDiv);
+          let searchBox = document.querySelector("[data-testid='SearchBox_Search_Input']"); 
+          if(searchBox.value.length <= 1)
+            {
+              searchBox.value =`from:@${username} `;
+            }
+        }, 10);
+      };       
+    }
+   
 }
 
 
@@ -2653,13 +2690,16 @@ const API = {
                   "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
               },
               credentials: "include"
-          }).then(i => i.json()).then(data => {
+            }).then(i => i.json(), i.headers, i.status).then(data, headers, status => {
+              const rateLimitHeaders = headers.get('x-rate-limit-limit', 'x-rate-limit-remaining', 'x-rate-limit-reset');
               if (data.errors && data.errors[0]) {
-                  return reject(data.errors[0].message);
+                return reject({message: data.errors[0].message, headers: rateLimitHeaders, status: status});
               }
               resolve({
                   list: data.users,
-                  cursor: data.next_cursor_str !== "0" ? data.next_cursor_str : null
+                  cursor: data.next_cursor_str !== "0" ? data.next_cursor_str : null,
+                  headers: rateLimitHeaders,
+                  status: status
               });
           }).catch(e => {
               reject(e);
@@ -2676,13 +2716,17 @@ const API = {
                     "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
                 },
                 credentials: "include"
-            }).then(i => i.json()).then(data => {
+            }).then(i => i.json(), i.headers, i.status).then(data, headers, status => {
+              const rateLimitHeaders = headers.get('x-rate-limit-limit', 'x-rate-limit-remaining', 'x-rate-limit-reset');
+
                 if (data.errors && data.errors[0]) {
-                    return reject(data.errors[0].message);
+                    return reject({message: data.errors[0].message, headers: rateLimitHeaders, status: status});
                 }
                 resolve({
                     list: data.users,
-                    cursor: data.next_cursor_str !== "0" ? data.next_cursor_str : null
+                    cursor: data.next_cursor_str !== "0" ? data.next_cursor_str : null,
+                    headers: rateLimitHeaders,
+                    status: status
                 });
             }).catch(e => {
                 reject(e);
@@ -2705,13 +2749,14 @@ const API = {
                     "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
                 },
                 credentials: "include"
-            }).then(i => i.json()).then(data => {
+            }).then(i => i.json(), i.headers).then(data, headers => {
+                const rateLimitHeaders = headers.get('x-rate-limit-limit', 'x-rate-limit-remaining', 'x-rate-limit-reset');
                 debugLog('user.getFollowingV2', 'start', {id, cursor, data});
                 if (data.errors && data.errors[0].code === 32) {
                     return reject("Not logged in");
                 }
                 if (data.errors && data.errors[0]) {
-                    return reject(data.errors[0].message);
+                    return reject([data.errors[0].message, rateLimitHeaders]);
                 }
                 let list = data.data.user.result.timeline.timeline.instructions.find(i => i.type === 'TimelineAddEntries').entries;
                 const out = {
@@ -2728,7 +2773,8 @@ const API = {
                     cursor: list.find(e => e.entryId.startsWith('cursor-bottom-')).content.value
                 }
                 debugLog('user.getFollowingV2', 'end', out);
-                resolve(out);
+
+                resolve([out, rateLimitHeaders]);
             }).catch(e => {
                 reject(e);
             });
@@ -2767,13 +2813,14 @@ const API = {
                     "content-type": "application/json"
                 },
                 credentials: "include"
-            }).then(i => i.json()).then(data => {
+            }).then(i => i.json(), i.headers).then(data, headers => {
+                const rateLimitHeaders = headers.get('x-rate-limit-limit', 'x-rate-limit-remaining', 'x-rate-limit-reset');
                 debugLog('user.getFollowersV2', 'start', {id, cursor, data});
                 if (data.errors && data.errors[0].code === 32) {
                     return reject("Not logged in");
                 }
                 if (data.errors && data.errors[0]) {
-                    return reject(data.errors[0].message);
+                    return reject([data.errors[0].message, rateLimitHeaders]);
                 }
                 let list = data.data.user.result.timeline.timeline.instructions.find(i => i.type === 'TimelineAddEntries').entries;
                 const out = {
@@ -2789,7 +2836,7 @@ const API = {
                     cursor: list.find(e => e.entryId.startsWith('cursor-bottom-')).content.value
                 };
                 debugLog('user.getFollowersV2', 'end', out);
-                resolve(out);
+                resolve([out,rateLimitHeaders]);
             }).catch(e => {
                 reject(e);
             });
@@ -3026,14 +3073,17 @@ const API = {
                     location.href = `/i/flow/login?newtwitter=true`;
                 }, 50);
             }
-            return i.json();
-        }).then(data => {
+            return i.json(), i.headers, i.status;
+        }).then(data, headers, status => {
           let list = data.users;
+          const rateLimitHeaders = headers.get('x-rate-limit-limit', 'x-rate-limit-remaining', 'x-rate-limit-reset');
           const out = {
             list: list
               .map((e) => {
                 return e;
               }),
+              headers: rateLimitHeaders,
+              status: status
             // cursor: list.find((e) => e.entryId.startsWith("cursor-bottom-"))
             //   .content.value,
           };
@@ -3276,15 +3326,31 @@ async function getAllUsers(userId, kind, limit = 100) {
       }
       return response;
     } catch (error) {
-      if (isRateLimitError(error) && retryCount < maxRetries) {
-        retryCount++;
-        const waitTime = Math.pow(2, retryCount) * 30000; // Exponential backoff
-        console.warn(`Rate limit hit. Retrying in ${waitTime / 1000} seconds...`);
-        notifier.warning(`Rate limit hit. Retrying in ${waitTime / 1000} seconds...`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
-        return fetchUsers(kind, cursor); // Retry the request
-      } else {
-        throw error; // Rethrow error if it's not a rate limit error or max retries exceeded
+      if (isRateLimitError(error) && error.headers) {
+        const limit = error.headers['x-rate-limit-limit'];
+        const remaining = error.headers['x-rate-limit-remaining'];
+        const resetTime = error.headers['x-rate-limit-reset'];
+        if (remaining === '0' && resetTime) {
+          const currentTime = Math.floor(Date.now() / 1000); // Current time in seconds (UTC)
+          const waitTime = (resetTime - currentTime) * 1000; // Time to wait in milliseconds
+  
+          console.warn(`Rate limit hit. Waiting until reset at ${new Date(resetTime * 1000)} (${waitTime / 1000} seconds)...`);
+          notifier.warning(`Rate limit hit. Retrying after reset in ${(waitTime / 1000).toFixed(2)} seconds.`);
+  
+          await new Promise(resolve => setTimeout(resolve, waitTime)); // Wait until rate limit resets
+          return fetchUsers(kind, cursor, limit); // Retry the request after waiting
+        }
+        else if (retryCount < maxRetries) {
+          // Fall back to exponential backoff if headers are not available
+          retryCount++;
+          const waitTime = Math.pow(2, retryCount) * 30000; // Exponential backoff
+          console.warn(`Retrying in ${waitTime / 1000} seconds...`);
+          notifier.warning(`Retrying in ${waitTime / 1000} seconds...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
+          return fetchUsers(kind, cursor, limit); // Retry the request
+        } else {
+          throw error; // Rethrow error if max retries exceeded
+        }
       }
     }
   };
@@ -3336,21 +3402,48 @@ async function getAllUsers(userId, kind, limit = 100) {
 }
 // Helper function to identify rate limit errors
 //!TODO: make use of rate limit headers to accurately wait for rate limits to lift
-
 function isRateLimitError(error) {
-  // Adjust the condition based on the actual API error response structure
-  if (error && error.message) {
-    return error.message.toLowerCase().includes("rate limit") || error.response && error.response.status === 429;
+  // Check if error object exists
+  if (!error) {
+    return false;
   }
-  else if(error && error.response)
-  {
-    return error.response && error.response.status === 429;
+
+  // Check for error message (case-insensitive) and status code 429
+  if (error.message) {
+    if (error.message.toLowerCase().includes("rate limit")) {
+      return true;
+    }
   }
-  if (error) {
-    return error.toLowerCase().includes("rate limit");
+
+  // Check if response contains status code 429 (rate limit)
+  if (error.status === 429) {
+    return true;
   }
+
+  // Check if headers indicate a rate limit issue
+  if (error.headers) {
+    const rateLimitRemaining = error.headers['x-rate-limit-remaining'];
+    if (rateLimitRemaining === '0') {
+      return true;  // Rate limit reached
+    }
+  }
+
   return false;
 }
+// function isRateLimitError(error) {
+//   // Adjust the condition based on the actual API error response structure
+//   if (error && error.message) {
+//     return error.message.toLowerCase().includes("rate limit") || error.response && error.status === 429;
+//   }
+//   else if(error && error.status)
+//   {
+//     return error.status === 429;
+//   }
+//   if (error) {
+//     return error.toLowerCase().includes("rate limit");
+//   }
+//   return false;
+// }
 function isArrayDefined(arr) {
   return arr !== undefined && arr !== null && Array.isArray(arr);
 }
