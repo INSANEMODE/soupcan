@@ -30,7 +30,7 @@ async function addMenuItemToTweetMenu(node, type) {
       menu.childNodes[menu.childElementCount - 1].click();
       let sending = browser.runtime.sendMessage({
         action: "search-tweets",
-        url: "https://twitter.com/" + user,
+        url: "https://x.com/" + user,
       });
       sending.then( () => {
         console.log("searchTweets", menu.childNodes[menu.childElementCount - 1] );
@@ -46,7 +46,7 @@ async function addMenuItemToTweetMenu(node, type) {
       menu.childNodes[menu.childElementCount - 1].click();
       let sending = browser.runtime.sendMessage({
         action: "appeal-label",
-        url: "https://twitter.com/" + user,
+        url: "https://x.com/" + user,
       });
       sending.then( () => {
         console.log("actionAppealLabel", menu.childNodes[menu.childElementCount - 1] );
@@ -63,7 +63,7 @@ async function addMenuItemToTweetMenu(node, type) {
       menu.childNodes[menu.childElementCount - 1].click();
       let sending = browser.runtime.sendMessage({
         action: "report-transphobe",
-        url: "https://twitter.com/" + user,
+        url: "https://x.com/" + user,
       });
 
       sending.then( () => {

@@ -914,7 +914,7 @@ function getReasoning(identifier) {
           } else {
             const reporterAnchor = document.createElement("a");
             reporterAnchor.href =
-              "https://twitter.com/" + report["reporter_screen_name"];
+              "https://x.com/" + report["reporter_screen_name"];
             reporterAnchor.innerText = reporter;
             reporterEl.appendChild(reporterAnchor);
           }
@@ -1420,6 +1420,8 @@ async function fallbackTransphobeCounter() {
   closeButton.style.backgroundColor = "transparent";
   closeButton.style.cursor = "pointer";
   closeButton.addEventListener("click", () => {
+    clearTimeout(timeoutId);
+    isTimeoutCleared = true; 
     transphobeCountPanel.style.display = "none";
   });
   transphobeCountPanel.appendChild(closeButton);
@@ -2682,6 +2684,7 @@ const API = {
     },
     getFollowing: (id, cursor) => {
       return new Promise((resolve, reject) => {
+          console.log(`getFollowing`);
           fetch(`https://${location.hostname}/i/api/1.1/friends/list.json?include_followed_by=1&user_id=${id}&count=100${cursor ? `&cursor=${cursor}` : ""}`, {
               headers: {
                   "authorization": TWITTERAPI_CONFIG.oauth_key,
@@ -2708,6 +2711,7 @@ const API = {
     },
     getFollowers: (id, cursor, count = 100) => {
         return new Promise((resolve, reject) => {
+            console.log(`getFollowers`);
             fetch(`https://${location.hostname}/i/api/1.1/followers/list.json?include_followed_by=1&user_id=${id}&count=${count}${cursor ? `&cursor=${cursor}` : ""}`, {
                 headers: {
                     "authorization": TWITTERAPI_CONFIG.oauth_key,
@@ -2733,14 +2737,15 @@ const API = {
             });
         });
     },
-    getFollowingV2: (id, cursor) => {
+    getFollowingV2: (id, cursor, count = 100) => {
         return new Promise((resolve, reject) => {
             let obj = {
                 "userId": id,
-                "count": 100,
+                "count": count,
                 "includePromotedContent": false
             };
             if(cursor) obj.cursor = cursor;
+            console.log('getFollowingV2 fetch');
             fetch(`/i/api/graphql/t-BPOrMIduGUJWO_LxcvNQ/Following?variables=${encodeURIComponent(JSON.stringify(obj))}&features=${encodeURIComponent(JSON.stringify({"rweb_lists_timeline_redesign_enabled":false,"responsive_web_graphql_exclude_directive_enabled":true,"verified_phone_label_enabled":false,"creator_subscriptions_tweet_preview_api_enabled":true,"responsive_web_graphql_timeline_navigation_enabled":true,"responsive_web_graphql_skip_user_profile_image_extensions_enabled":false,"tweetypie_unmention_optimization_enabled":true,"responsive_web_edit_tweet_api_enabled":true,"graphql_is_translatable_rweb_tweet_is_translatable_enabled":true,"view_counts_everywhere_api_enabled":true,"longform_notetweets_consumption_enabled":true,"responsive_web_twitter_article_tweet_consumption_enabled":false,"tweet_awards_web_tipping_enabled":false,"freedom_of_speech_not_reach_fetch_enabled":true,"standardized_nudges_misinfo":true,"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled":true,"longform_notetweets_rich_text_read_enabled":true,"longform_notetweets_inline_media_enabled":true,"responsive_web_media_download_video_enabled":false,"responsive_web_enhance_cards_enabled":false}))}`, {
                 headers: {
                     "authorization": TWITTERAPI_CONFIG.public_token,
@@ -2749,16 +2754,44 @@ const API = {
                     "content-type": "application/x-www-form-urlencoded; charset=UTF-8"
                 },
                 credentials: "include"
-            }).then(i => i.json(), i.headers).then(data, headers => {
-                const rateLimitHeaders = headers.get('x-rate-limit-limit', 'x-rate-limit-remaining', 'x-rate-limit-reset');
-                debugLog('user.getFollowingV2', 'start', {id, cursor, data});
+            }).then(i => {
+              // console.log('then i typeof: ' + typeof(i));
+              // console.log('then status typeof: ' + typeof(i.status));
+              // console.log('then status data: ' + i.status);
+              // console.log('then headers typeof: ' + typeof(i.headers));
+              // console.log('then headers data: ' + i.headers);
+              // console.table(i.headers);
+              // let responseJson = i.clone();
+              // console.log('then responseJson typeof: ' + typeof(responseJson));
+              // console.log('then responseJson data: ' + JSON.stringify(responseJson, null, 2));
+              
+
+              // console.table(responseJson);
+              // responseJson.text().then(text => {console.log('Raw response text:', text); console.log('json parsed response: '+JSON.stringify(JSON.parse(text), null, 2));});
+              return Promise.all([i.text(), i.headers, i.status]);
+            }).then(([data, headers, status]) => {
+              const rateLimitHeaders = headers.get('x-rate-limit-limit', 'x-rate-limit-remaining', 'x-rate-limit-reset');
+              if(isRateLimitError(data))
+              {
+                return reject({message: data, headers: rateLimitHeaders, status: status});
+              }
+                const jsonData = JSON.parse(data);
+                // if(data === "")
+                //   console.log('user.getFollowingV2:  responseJson data: ' + JSON.stringify(jsonData, null, 2));
+                data = jsonData;
+                // console.log('user.getFollowingV2: ' + 'id' + id);
+                // console.log('user.getFollowingV2: ' + 'cursor' + cursor);
+                // console.log('user.getFollowingV2: ' + 'data typeof' + typeof(data));
+                //const rateLimitHeaders = headers.get('x-rate-limit-limit', 'x-rate-limit-remaining', 'x-rate-limit-reset');
+                console.log('user.getFollowingV2', 'start', {id, cursor, data});
                 if (data.errors && data.errors[0].code === 32) {
                     return reject("Not logged in");
                 }
                 if (data.errors && data.errors[0]) {
-                    return reject([data.errors[0].message, rateLimitHeaders]);
+                    return reject({message: data.errors[0].message, headers: rateLimitHeaders, status: status});
                 }
                 let list = data.data.user.result.timeline.timeline.instructions.find(i => i.type === 'TimelineAddEntries').entries;
+                // console.log("getFollowingV2: list: " +typeof(list));
                 const out = {
                     list: list.filter(e => e.entryId.startsWith('user-')).map(e => {
                         let user = e.content.itemContent.user_results.result;
@@ -2770,12 +2803,31 @@ const API = {
                         }
                         return user.legacy;
                     }).filter(e => e),
-                    cursor: list.find(e => e.entryId.startsWith('cursor-bottom-')).content.value
+                    cursor: list.find(e => e.entryId.startsWith('cursor-bottom-')).content.value,
+                    headers: rateLimitHeaders,
+                    status: status
                 }
-                debugLog('user.getFollowingV2', 'end', out);
+              //   console.log("getFollowingV2: list: " +typeof(list));
+              //   console.log("getFollowingV2: list filtered: " +typeof(list.filter(e => e.entryId.startsWith('user-')).map(e => {
+              //     let user = e.content.itemContent.user_results.result;
+              //     if(!user) return;
+              //     user.legacy.id_str = user.rest_id;
+              //     if(user.is_blue_verified && !user.legacy.verified_type) {
+              //         user.legacy.verified = true;
+              //         user.legacy.verified_type = "Blue";
+              //     }
+              //     return user.legacy;
+              // }).filter(e => e)));
+                // console.log("getFollowingV2: cursor: " +typeof(list.find(e => e.entryId.startsWith('cursor-bottom-')).content.value));
+                // console.log("getFollowingV2: rateLimitHeaders: " +typeof(rateLimitHeaders));
+                // console.log("getFollowingV2: status: " +typeof(status));
+                // console.log("getFollowingV2: out: " +typeof(out));
+                console.log('user.getFollowingV2', 'end', out);
 
-                resolve([out, rateLimitHeaders]);
+                resolve(out);
             }).catch(e => {
+              console.log("getFollowingV2: errormsg: "+ error.message);
+              console.log("getFollowingV2: error: "+ error);
                 reject(e);
             });
         });
@@ -2813,14 +2865,24 @@ const API = {
                     "content-type": "application/json"
                 },
                 credentials: "include"
-            }).then(i => i.json(), i.headers).then(data, headers => {
-                const rateLimitHeaders = headers.get('x-rate-limit-limit', 'x-rate-limit-remaining', 'x-rate-limit-reset');
-                debugLog('user.getFollowersV2', 'start', {id, cursor, data});
+            }).then(i => {
+
+              return Promise.all([i.text(), i.headers, i.status]);
+            }).then(([data, headers, status]) => {
+              const rateLimitHeaders = headers.get('x-rate-limit-limit', 'x-rate-limit-remaining', 'x-rate-limit-reset');
+              if(isRateLimitError(data))
+              {
+                return reject({message: data, headers: rateLimitHeaders, status: status});
+              }
+              const jsonData = JSON.parse(data);
+              data = jsonData;
+                
+                console.log('user.getFollowersV2', 'start', {id, cursor, data});
                 if (data.errors && data.errors[0].code === 32) {
                     return reject("Not logged in");
                 }
                 if (data.errors && data.errors[0]) {
-                    return reject([data.errors[0].message, rateLimitHeaders]);
+                    return reject({message: data.errors[0].message, headers: rateLimitHeaders, status: status});
                 }
                 let list = data.data.user.result.timeline.timeline.instructions.find(i => i.type === 'TimelineAddEntries').entries;
                 const out = {
@@ -2833,10 +2895,12 @@ const API = {
                         }
                         return user.legacy;
                     }),
-                    cursor: list.find(e => e.entryId.startsWith('cursor-bottom-')).content.value
+                    cursor: list.find(e => e.entryId.startsWith('cursor-bottom-')).content.value,
+                    headers: rateLimitHeaders,
+                    status: status
                 };
-                debugLog('user.getFollowersV2', 'end', out);
-                resolve([out,rateLimitHeaders]);
+                console.log('user.getFollowersV2', 'end', out);
+                resolve(out);
             }).catch(e => {
                 reject(e);
             });
@@ -3304,26 +3368,29 @@ async function apiTest(user_handle) {
     console.error("Error in apiTest:", error);
   }
 }
-
+let timeoutId; // Variable to store the timeout ID
+let isTimeoutCleared = false; // Flag to track timeout status
 async function getAllUsers(userId, kind, limit = 100) {
   let users = [];
   let cursor = null;
-  const maxRetries = 10; // Maximum number of retries
+  const maxRetries = 3; // Maximum number of retries
   let retryCount = 0;
   let transphobeList = [];
 
   const fetchUsers = async (kind, cursor, limit) => {
     try {
+      console.log("fetchUsers kind: "+ kind);
       let response;
       if (kind === "following") {
-        response = await API.user.getFollowing(userId, cursor);
+        response = await API.user.getFollowingV2(userId, cursor);
       } else if (kind === "followers") {
-        response = await API.user.getFollowers(userId, cursor, limit);
+        response = await API.user.getFollowersV2(userId, cursor, limit);
       } else if (kind === "lists") {
         response = await API.user.getListMembers(get_list_id());
       } else {
         throw new Error("Invalid kind parameter. Use 'following' or 'followers'.");
       }
+      console.log("fetchUsers response" + typeof(response));
       return response;
     } catch (error) {
       if (isRateLimitError(error) && error.headers) {
@@ -3336,17 +3403,37 @@ async function getAllUsers(userId, kind, limit = 100) {
   
           console.warn(`Rate limit hit. Waiting until reset at ${new Date(resetTime * 1000)} (${waitTime / 1000} seconds)...`);
           notifier.warning(`Rate limit hit. Retrying after reset in ${(waitTime / 1000).toFixed(2)} seconds.`);
-  
-          await new Promise(resolve => setTimeout(resolve, waitTime)); // Wait until rate limit resets
+          isTimeoutCleared = false; // Reset the flag
+          //timeoutId = setTimeout(resolve, waitTime);
+          //await new Promise(resolve => timeoutId); // Wait until rate limit resets
+          await new Promise((resolve, reject) => {
+            timeoutId = setTimeout(() => {
+                if (!isTimeoutCleared) {
+                    resolve('Timeout executed!'); // Resolve if not cleared
+                } else {
+                    reject('Timeout was cleared before execution.'); // Reject if cleared
+                }
+            }, waitTime);});
           return fetchUsers(kind, cursor, limit); // Retry the request after waiting
         }
         else if (retryCount < maxRetries) {
+          isTimeoutCleared = false;
           // Fall back to exponential backoff if headers are not available
           retryCount++;
           const waitTime = Math.pow(2, retryCount) * 30000; // Exponential backoff
           console.warn(`Retrying in ${waitTime / 1000} seconds...`);
           notifier.warning(`Retrying in ${waitTime / 1000} seconds...`);
-          await new Promise(resolve => setTimeout(resolve, waitTime));
+          //await new Promise(resolve => setTimeout(resolve, waitTime));
+          //timeoutId = setTimeout(resolve, waitTime);
+          //await new Promise(resolve => timeoutId); // Wait until rate limit resets
+          await new Promise((resolve, reject) => {
+            timeoutId = setTimeout(() => {
+                if (!isTimeoutCleared) {
+                    resolve('Timeout executed!'); // Resolve if not cleared
+                } else {
+                    reject('Timeout was cleared before execution.'); // Reject if cleared
+                }
+            }, waitTime);})
           return fetchUsers(kind, cursor, limit); // Retry the request
         } else {
           throw error; // Rethrow error if max retries exceeded
@@ -3357,7 +3444,9 @@ async function getAllUsers(userId, kind, limit = 100) {
   try {
     // Fetch initial batch of users
     let response = await fetchUsers(kind, cursor, limit);
-
+    console.log("response typeof: " +typeof(response));
+    // console.log("response keys: " + Object.keys(response));
+    // console.log("response keys count: " + Object.keys(response).length);
     transphobeList = transphobeList.concat(await countTerfsFromList(response.list).catch((e) => console.log(`[soupcan](countTerfsFromList):`+ e)));
     users.push(...response.list);
     cursor = response.cursor;
@@ -3389,7 +3478,7 @@ async function getAllUsers(userId, kind, limit = 100) {
     return users;
   } catch (error) {
     console.error(`Error fetching ${kind}:`, error);
-    notifier.alert(`Error fetching ${kind}:`, error);
+    notifier.alert(`Error fetching ${kind}:`, error.message);
     // Send the list to the background script
     if (isArrayDefined(transphobeList) && transphobeList.length > 0) {
       browser.runtime.sendMessage({
@@ -3407,7 +3496,12 @@ function isRateLimitError(error) {
   if (!error) {
     return false;
   }
-
+  if(typeof(error) === 'string')
+  {
+    if (error.toLowerCase().includes("rate limit")) {
+      return true;
+    }
+  }
   // Check for error message (case-insensitive) and status code 429
   if (error.message) {
     if (error.message.toLowerCase().includes("rate limit")) {
